@@ -87,7 +87,7 @@
 </div>
 
 <script>
-const API = location.origin.includes('file') ? 'http://localhost:8601' : location.origin;
+const API = location.origin.includes('file') ? 'https://kitchen_checker.mobile1234.site' : location.origin;
 const TK='checker_token';
 const getTok=()=>{try{return localStorage.getItem(TK)}catch{return null}};
 const setTok=t=>{try{t?localStorage.setItem(TK,t):localStorage.removeItem(TK)}catch{}};
