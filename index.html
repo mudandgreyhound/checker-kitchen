@@ -99,7 +99,7 @@ const setTok = (t)=>{ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.remo
 const authH  = ()=>{ const t=getTok(); return t?{'Authorization':'Bearer '+t}:{} };
 const fmt = (n,d=0)=> (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const $ = (id)=>document.getElementById(id);
-let searchTimer=null, curUser=null;
+let searchTimer=null, curUser=null, curDoc=null;
 
 async function api(path,opts={}){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authH(),...(opts.headers||{})}});
@@ -200,7 +200,7 @@ async function saveQty(idx){
     it.qty_checked=qty; it.checked_by=curUser.username;
     it.checked_at=new Date().toTimeString().slice(0,5);
     renderItems();
-  }catch(e){ alert('บันทึกไม่สำเร็จ: '+e.message); }
+  }catch(e){ console.error('save error',e); alert('บันทึกไม่สำเร็จ: '+(e.message||e)); }
 }
 
 async function boot(){
