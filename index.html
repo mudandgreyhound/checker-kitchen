@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Checker · Dunkin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Prompt:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Prompt','Nunito',sans-serif;background:#faf7f3;-webkit-tap-highlight-color:transparent}
+  .num{font-family:'Nunito',sans-serif}
+  .card{background:#fff;border:1px solid #f0ece6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  input,button{touch-action:manipulation}
+  .stepbtn{width:52px;height:52px;font-size:26px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;user-select:none}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#e5ded5;border-radius:6px}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ══════════ LOGIN ══════════ -->
+<div id="loginView" class="hidden min-h-screen flex items-center justify-center px-4">
+  <div class="card w-full max-w-sm p-8">
+    <div class="text-center mb-6">
+      <div class="text-3xl font-extrabold" style="color:#FF671F">DUNKIN'</div>
+      <div class="text-xs font-bold tracking-widest text-gray-400 mt-1">CHECKER · ครัว</div>
+    </div>
+    <div id="loginErr" class="hidden mb-3 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2"></div>
+    <input id="lgUser" placeholder="Username (เช่น Emp01-K0003)" class="w-full mb-3 px-4 py-3 rounded-xl border border-gray-200 text-lg focus:border-orange-400 outline-none" autocomplete="username">
+    <input id="lgPass" type="password" placeholder="Password" class="w-full mb-5 px-4 py-3 rounded-xl border border-gray-200 text-lg focus:border-orange-400 outline-none" autocomplete="current-password">
+    <button id="lgBtn" class="w-full py-3.5 rounded-xl font-bold text-white text-lg" style="background:#FF671F">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="appView" class="hidden">
+  <header class="bg-white border-b border-gray-100 sticky top-0 z-20">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
+      <span class="text-2xl">✅</span>
+      <div>
+        <div class="font-extrabold text-lg" style="color:#FF671F">Checker</div>
+        <div class="text-xs text-gray-400" id="userLabel"></div>
+      </div>
+      <button id="logoutBtn" class="ml-auto px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">ออก</button>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 py-4">
+    <!-- ── เลือกใบ ── -->
+    <div id="pickView">
+      <div class="card p-4 mb-3">
+        <div class="text-sm font-bold text-gray-500 mb-2">🔢 เปิดใบด้วยเลขเอกสาร (7 หลัก)</div>
+        <div class="flex gap-2">
+          <input id="ckCode" inputmode="numeric" placeholder="0138926"
+                 class="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-2xl font-extrabold num text-center outline-none focus:border-orange-400">
+          <button id="ckOpenBtn" class="px-6 rounded-xl font-bold text-white text-lg" style="background:#FF671F">เปิด</button>
+        </div>
+        <div id="ckErr" class="hidden mt-2 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2"></div>
+      </div>
+
+      <div class="flex items-center justify-between mb-2 px-1">
+        <div class="text-sm font-bold text-gray-500">📄 ใบวันนี้ — แตะเพื่อเช็ค</div>
+        <button id="refreshDocs" class="text-sm font-bold" style="color:#FF671F">🔄 รีเฟรช</button>
+      </div>
+      <div id="docList" class="space-y-2"></div>
+    </div>
+
+    <!-- ── เช็คใบ ── -->
+    <div id="checkView" class="hidden">
+      <button id="backBtn" class="mb-3 text-sm font-bold text-gray-500">← กลับ</button>
+      <div class="card p-4 mb-3" style="background:linear-gradient(90deg,#FFF4EC,#FDECF4)">
+        <div class="text-lg font-extrabold" id="cvDoc" style="color:#FF671F"></div>
+        <div class="text-sm text-gray-600 mt-1">
+          <span id="cvKit"></span> → ร้าน <span id="cvShop" class="font-bold"></span>
+          · วันส่ง <span id="cvDate"></span>
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <div class="flex-1 h-2 rounded-full bg-white overflow-hidden">
+            <div id="cvBar" class="h-full" style="background:#16a34a;width:0%"></div>
+          </div>
+          <div class="text-xs font-bold text-gray-500"><span id="cvDone">0</span>/<span id="cvTotal">0</span></div>
+        </div>
+      </div>
+      <div id="itemList" class="space-y-2 pb-6"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = location.origin.includes('file') ? 'http://localhost:8601' : location.origin;
+const TK='checker_token';
+const getTok=()=>{try{return localStorage.getItem(TK)}catch{return null}};
+const setTok=t=>{try{t?localStorage.setItem(TK,t):localStorage.removeItem(TK)}catch{}};
+const authH=()=>{const t=getTok();return t?{'Authorization':'Bearer '+t}:{}};
+const fmt=n=>(Number(n)||0).toLocaleString('en-US');
+const $=id=>document.getElementById(id);
+let curUser=null, curDoc=null;
+
+async function api(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authH(),...(opts.headers||{})}});
+  if(r.status===401){setTok(null);showLogin();throw new Error('unauthorized');}
+  if(!r.ok){const e=await r.json().catch(()=>({detail:'error'}));throw new Error(e.detail||('HTTP '+r.status));}
+  return r.json();
+}
+function showLogin(){$('loginView').classList.remove('hidden');$('appView').classList.add('hidden');}
+function showApp(){$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');}
+
+// ── login ──
+async function doLogin(){
+  $('loginErr').classList.add('hidden');
+  const username=$('lgUser').value.trim(), password=$('lgPass').value;
+  if(!username||!password)return;
+  $('lgBtn').disabled=true;$('lgBtn').textContent='กำลังเข้า...';
+  try{
+    const d=await api('/api/login',{method:'POST',body:JSON.stringify({username,password})});
+    setTok(d.token);curUser=d.user;showApp();await boot();
+  }catch(e){$('loginErr').textContent=e.message;$('loginErr').classList.remove('hidden');}
+  finally{$('lgBtn').disabled=false;$('lgBtn').textContent='เข้าสู่ระบบ';}
+}
+
+// ── list docs ──
+async function loadDocs(){
+  const d=await api('/api/docs');
+  const box=$('docList');
+  if(!d.docs.length){box.innerHTML='<div class="text-center text-gray-400 py-8">ยังไม่มีใบ</div>';return;}
+  box.innerHTML=d.docs.map(x=>{
+    const done=x.n_checked>=x.n_item;
+    const badge=done?'<span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">✓ ครบ</span>'
+      :`<span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
+    return `<div class="card p-4 flex items-center gap-3 active:bg-orange-50" onclick="openDoc('${x.tro_code}')">
+      <div class="flex-1">
+        <div class="font-extrabold num text-lg" style="color:#FF671F">${x.tro_code}</div>
+        <div class="text-sm text-gray-500">→ ร้าน ${x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น</div>
+      </div>${badge}
+      <div class="text-gray-300 text-xl">›</div>
+    </div>`;}).join('');
+}
+
+// ── open doc ──
+async function openDoc(code){
+  $('ckErr').classList.add('hidden');
+  try{
+    const d=await api('/api/doc/'+encodeURIComponent(code));
+    curDoc=d;
+    $('cvDoc').textContent=d.header.document_no;
+    $('cvKit').textContent=d.header.kitchen;
+    $('cvShop').textContent=d.header.shop||'—';
+    $('cvDate').textContent=d.header.de_date||'—';
+    renderItems();
+    $('pickView').classList.add('hidden');$('checkView').classList.remove('hidden');
+    window.scrollTo(0,0);
+  }catch(e){$('ckErr').textContent=e.message;$('ckErr').classList.remove('hidden');}
+}
+window.openDoc=openDoc;
+
+function renderItems(){
+  const its=curDoc.items;
+  const done=its.filter(i=>i.qty_checked!==null).length;
+  $('cvDone').textContent=done;$('cvTotal').textContent=its.length;
+  $('cvBar').style.width=(its.length?done/its.length*100:0)+'%';
+  $('itemList').innerHTML=its.map((it,idx)=>{
+    const checked=it.qty_checked!==null;
+    const val=checked?it.qty_checked:it.qty_system;
+    const diff=checked?(it.qty_checked-it.qty_system):0;
+    const by=it.checked_by?`<span class="text-[11px] text-gray-400">โดย ${it.checked_by} ${it.checked_at||''}</span>`:'';
+    return `<div class="card p-4 ${checked?'ring-1 ring-green-200':''}">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <div class="font-bold">${it.code} ${checked?'<span class=\"text-green-600\">✓</span>':''}</div>
+          <div class="text-sm text-gray-500">${it.name||'—'}</div>
+          <div class="text-xs text-gray-400 mt-0.5">ระบบ(GR): <b>${fmt(it.qty_system)}</b> ${it.unit||''} ${diff!==0?`· <span class="${diff<0?'text-red-600':'text-green-600'}">${diff>0?'+':''}${diff}</span>`:''}</div>
+          ${by}
+        </div>
+      </div>
+      <div class="flex items-center gap-3 justify-center">
+        <button class="stepbtn bg-gray-100 text-gray-700 active:bg-gray-200" onclick="stepQty(${idx},-1)">−</button>
+        <input id="qi${idx}" inputmode="numeric" value="${val}" onchange="saveQty(${idx})"
+               class="w-24 h-14 text-center text-2xl font-extrabold num rounded-xl border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
+        <button class="stepbtn text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
+      </div>
+    </div>`;}).join('');
+}
+
+function stepQty(idx,delta){
+  const inp=$('qi'+idx);
+  inp.value=Math.max(0,(parseInt(inp.value)||0)+delta);
+  saveQty(idx);
+}
+async function saveQty(idx){
+  const it=curDoc.items[idx];
+  const qty=Math.max(0,parseInt($('qi'+idx).value)||0);
+  $('qi'+idx).value=qty;
+  try{
+    await api('/api/check',{method:'POST',body:JSON.stringify({tro_code:curDoc.header.tro_code,seq:it.seq,qty})});
+    it.qty_checked=qty; it.checked_by=curUser.username;
+    it.checked_at=new Date().toTimeString().slice(0,5);
+    renderItems();
+  }catch(e){ alert('บันทึกไม่สำเร็จ: '+e.message); }
+}
+
+async function boot(){
+  $('userLabel').textContent=(curUser.full_name||curUser.username)+' · ครัว '+(curUser.kitchen||'ทุกครัว');
+  await loadDocs();
+}
+
+$('lgBtn').onclick=doLogin;
+$('lgPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+$('logoutBtn').onclick=()=>{setTok(null);curUser=null;showLogin();};
+$('refreshDocs').onclick=()=>loadDocs();
+$('backBtn').onclick=()=>{$('checkView').classList.add('hidden');$('pickView').classList.remove('hidden');loadDocs();};
+$('ckOpenBtn').onclick=()=>{const c=$('ckCode').value.trim();if(c)openDoc(c);};
+$('ckCode').addEventListener('keydown',e=>{if(e.key==='Enter'){const c=$('ckCode').value.trim();if(c)openDoc(c);}});
+
+(async function(){
+  if(getTok()){try{const m=await api('/api/me');curUser={username:m.username,role:m.role,kitchen:m.kitchen};showApp();await boot();return;}catch{}}
+  showLogin();
+})();
+</script>
+</body>
+</html>
