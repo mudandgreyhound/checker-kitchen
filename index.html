@@ -134,7 +134,7 @@ async function loadDocs(){
       :`<span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
     return `<div class="card p-4 flex items-center gap-3 active:bg-orange-50" onclick="openDoc('${x.tro_code}')">
       <div class="flex-1">
-        <div class="font-extrabold num text-lg" style="color:#FF671F">${x.tro_code}</div>
+        <div class="font-extrabold num text-lg" style="color:#FF671F">TO-${x.kitchen} ${String(x.tro_code).padStart(7,'0')}</div>
         <div class="text-sm text-gray-500">→ ร้าน ${x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น</div>
       </div>${badge}
       <div class="text-gray-300 text-xl">›</div>
@@ -171,9 +171,9 @@ function renderItems(){
     return `<div class="card p-4 ${checked?'ring-1 ring-green-200':''}">
       <div class="flex items-start justify-between mb-3">
         <div>
-          <div class="font-bold">${it.code} ${checked?'<span class=\"text-green-600\">✓</span>':''}</div>
-          <div class="text-sm text-gray-500">${it.name||'—'}</div>
-          <div class="text-xs text-gray-400 mt-0.5">ระบบ(GR): <b>${fmt(it.qty_system)}</b> ${it.unit||''} ${diff!==0?`· <span class="${diff<0?'text-red-600':'text-green-600'}">${diff>0?'+':''}${diff}</span>`:''}</div>
+          <div class="num text-3xl font-extrabold tracking-wide" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-2xl\">✓</span>':''}</div>
+          <div class="text-base text-gray-600 mt-0.5">${it.name||'—'}</div>
+          <div class="text-xs text-gray-400 mt-1">ระบบ(GR): <b>${fmt(it.qty_system)}</b> ${it.unit||''} ${diff!==0?`· <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</div>
           ${by}
         </div>
       </div>
