@@ -87,14 +87,19 @@
 </div>
 
 <script>
-const API = location.origin.includes('file') ? 'https://kitchen_checker.mobile1234.site' : location.origin;
-const TK='checker_token';
-const getTok=()=>{try{return localStorage.getItem(TK)}catch{return null}};
-const setTok=t=>{try{t?localStorage.setItem(TK,t):localStorage.removeItem(TK)}catch{}};
-const authH=()=>{const t=getTok();return t?{'Authorization':'Bearer '+t}:{}};
-const fmt=n=>(Number(n)||0).toLocaleString('en-US');
-const $=id=>document.getElementById(id);
-let curUser=null, curDoc=null;
+// ⚙️ ตั้ง URL ของ Backend API ที่นี่ (server ที่รัน FastAPI :8600)
+//   - ถ้า frontend อยู่บน GitHub Pages: ใส่ URL server เต็ม เช่น 'https://kitchen-api.mobile1234.site'
+//   - ถ้า frontend เสิร์ฟจาก server เดียวกับ API: ใช้ '' (same-origin)
+//   ⚠️ ต้องเป็น https ถ้า frontend เป็น https (กัน mixed-content ถูก browser บล็อก)
+const API_BASE = 'https://kitchen_checker.mobile1234.site';   // ← แก้ตรงนี้ให้ตรง server จริง
+const API = API_BASE || location.origin;
+const TOKEN_KEY = 'ks_token';
+const getTok = ()=>{ try{return localStorage.getItem(TOKEN_KEY)}catch{return null} };
+const setTok = (t)=>{ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY) }catch{} };
+const authH  = ()=>{ const t=getTok(); return t?{'Authorization':'Bearer '+t}:{} };
+const fmt = (n,d=0)=> (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const $ = (id)=>document.getElementById(id);
+let searchTimer=null, curUser=null;
 
 async function api(path,opts={}){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authH(),...(opts.headers||{})}});
