@@ -13,6 +13,7 @@
   .card{background:#fff;border:1px solid #f0ece6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
   input,button{touch-action:manipulation}
   .stepbtn{width:52px;height:52px;font-size:26px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;user-select:none}
+  .stepbtn-sm{width:44px;height:44px;font-size:22px;font-weight:800;border-radius:11px;display:flex;align-items:center;justify-content:center;user-select:none;flex-shrink:0}
   ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#e5ded5;border-radius:6px}
 </style>
 </head>
@@ -81,7 +82,7 @@
           <div class="text-xs font-bold text-gray-500"><span id="cvDone">0</span>/<span id="cvTotal">0</span></div>
         </div>
       </div>
-      <div id="itemList" class="space-y-2 pb-6"></div>
+      <div id="itemList" class="space-y-1.5 pb-6"></div>
     </div>
   </main>
 </div>
@@ -168,21 +169,16 @@ function renderItems(){
     const val=checked?it.qty_checked:it.qty_system;
     const diff=checked?(it.qty_checked-it.qty_system):0;
     const by=it.checked_by?`<span class="text-[11px] text-gray-400">โดย ${it.checked_by} ${it.checked_at||''}</span>`:'';
-    return `<div class="card p-4 ${checked?'ring-1 ring-green-200':''}">
-      <div class="flex items-start justify-between mb-3">
-        <div>
-          <div class="num text-3xl font-extrabold tracking-wide" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-2xl\">✓</span>':''}</div>
-          <div class="text-base text-gray-600 mt-0.5">${it.name||'—'}</div>
-          <div class="text-xs text-gray-400 mt-1">ระบบ(GR): <b>${fmt(it.qty_system)}</b> ${it.unit||''} ${diff!==0?`· <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</div>
-          ${by}
-        </div>
+    return `<div class="card px-3 py-2 flex items-center gap-2 ${checked?'ring-1 ring-green-200':''}">
+      <div class="flex-1 min-w-0">
+        <div class="num text-xl font-extrabold tracking-wide leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-base\">✓</span>':''}</div>
+        <div class="text-xs text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(it.qty_system)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
+        ${it.checked_by?`<div class="text-[10px] text-gray-300">โดย ${it.checked_by} ${it.checked_at||''}</div>`:''}
       </div>
-      <div class="flex items-center gap-3 justify-center">
-        <button class="stepbtn bg-gray-100 text-gray-700 active:bg-gray-200" onclick="stepQty(${idx},-1)">−</button>
-        <input id="qi${idx}" inputmode="numeric" value="${val}" onchange="saveQty(${idx})"
-               class="w-24 h-14 text-center text-2xl font-extrabold num rounded-xl border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
-        <button class="stepbtn text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
-      </div>
+      <button class="stepbtn-sm bg-gray-100 text-gray-700 active:bg-gray-200" onclick="stepQty(${idx},-1)">−</button>
+      <input id="qi${idx}" inputmode="numeric" value="${val}" onchange="saveQty(${idx})"
+             class="w-16 h-11 text-center text-xl font-extrabold num rounded-lg border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
+      <button class="stepbtn-sm text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
     </div>`;}).join('');
 }
 
