@@ -125,21 +125,61 @@ async function doLogin(){
 }
 
 // ── list docs ──
-async function loadDocs(){
-  const d=await api('/api/docs');
-  const box=$('docList');
-  if(!d.docs.length){box.innerHTML='<div class="text-center text-gray-400 py-8">ยังไม่มีใบ</div>';return;}
-  box.innerHTML=d.docs.map(x=>{
-    const done=x.n_checked>=x.n_item;
-    const badge=done?'<span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">✓ ครบ</span>'
-      :`<span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
-    return `<div class="card p-4 flex items-center gap-3 active:bg-orange-50" onclick="openDoc('${x.tro_code}')">
+// ── list docs (แยก 3 กลุ่ม: 🟠 ยังไม่เช็ค → 🟡 กำลังเช็ค → 🟢 เช็คครบ) ──
+function docCard(x, badge){
+  return `<div class="card p-4 flex items-center gap-3 active:bg-orange-50" onclick="openDoc('${x.tro_code}')">
       <div class="flex-1">
         <div class="font-extrabold num text-lg" style="color:#FF671F">TO-${x.kitchen} ${String(x.tro_code).padStart(7,'0')}</div>
         <div class="text-sm text-gray-500">→ ร้าน ${x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น</div>
       </div>${badge}
       <div class="text-gray-300 text-xl">›</div>
-    </div>`;}).join('');
+    </div>`;
+}
+function docSection(items, emoji, title, color, badgeFn, collapsible, open){
+  if(!items.length) return '';
+  const cards = items.map(x=>docCard(x, badgeFn(x))).join('');
+  const cnt = `<span class="text-xs font-bold" style="color:${color}">${items.length} ใบ</span>`;
+  if(collapsible){
+    return `<div class="mb-1">
+      <button onclick="toggleGrp(this)" class="w-full flex items-center gap-2 px-1 py-2">
+        <span>${emoji}</span><span class="text-sm font-bold" style="color:${color}">${title}</span>${cnt}
+        <span class="ml-auto text-gray-400 grp-arrow" style="display:inline-block;transition:transform .15s;transform:rotate(${open?90:0}deg)">›</span>
+      </button>
+      <div class="grp-body space-y-2 ${open?'':'hidden'}">${cards}</div>
+    </div>`;
+  }
+  return `<div class="mb-1">
+    <div class="flex items-center gap-2 px-1 py-2">
+      <span>${emoji}</span><span class="text-sm font-bold" style="color:${color}">${title}</span>${cnt}
+    </div>
+    <div class="space-y-2">${cards}</div>
+  </div>`;
+}
+function toggleGrp(btn){
+  const body=btn.parentElement.querySelector('.grp-body');
+  const arrow=btn.querySelector('.grp-arrow');
+  const hidden=body.classList.toggle('hidden');
+  if(arrow) arrow.style.transform='rotate('+(hidden?0:90)+'deg)';
+}
+window.toggleGrp=toggleGrp;
+
+async function loadDocs(){
+  const d=await api('/api/docs');
+  const box=$('docList');
+  if(!d.docs.length){box.innerHTML='<div class="text-center text-gray-400 py-8">ยังไม่มีใบ</div>';return;}
+  const pending=[], doing=[], done=[];
+  d.docs.forEach(x=>{
+    if(x.n_checked>=x.n_item) done.push(x);
+    else if(x.n_checked>0)    doing.push(x);
+    else                       pending.push(x);
+  });
+  const bPending=x=>`<span class="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
+  const bDoing  =x=>`<span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
+  const bDone   =x=>`<span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">✓ ${x.n_checked}/${x.n_item}</span>`;
+  box.innerHTML =
+      docSection(pending,'🟠','ยังไม่เช็ค','#c2410c',bPending,false,true)
+    + docSection(doing,  '🟡','กำลังเช็ค', '#b45309',bDoing,  false,true)
+    + docSection(done,   '🟢','เช็คครบ',   '#15803d',bDone,   true, false);
 }
 
 // ── open doc ──
