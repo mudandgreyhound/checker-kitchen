@@ -68,7 +68,6 @@
 
     <!-- ── เช็คใบ ── -->
     <div id="checkView" class="hidden">
-      <button id="backBtn" class="mb-3 text-sm font-bold text-gray-500">← กลับ</button>
       <div class="card p-4 mb-3" style="background:linear-gradient(90deg,#FFF4EC,#FDECF4)">
         <div class="text-lg font-extrabold" id="cvDoc" style="color:#FF671F"></div>
         <div class="text-sm text-gray-600 mt-1">
@@ -82,7 +81,10 @@
           <div class="text-xs font-bold text-gray-500"><span id="cvDone">0</span>/<span id="cvTotal">0</span></div>
         </div>
       </div>
-      <div id="itemList" class="space-y-1.5 pb-6"></div>
+      <div id="itemList" class="space-y-1.5 pb-3"></div>
+      <button id="saveBtn" class="w-full py-3.5 mb-6 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2" style="background:#16a34a">
+        <span>✓</span> บันทึกเอกสาร
+      </button>
     </div>
   </main>
 </div>
@@ -248,7 +250,15 @@ $('lgBtn').onclick=doLogin;
 $('lgPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 $('logoutBtn').onclick=()=>{setTok(null);curUser=null;showLogin();};
 $('refreshDocs').onclick=()=>loadDocs();
-$('backBtn').onclick=()=>{$('checkView').classList.add('hidden');$('pickView').classList.remove('hidden');loadDocs();};
+$('saveBtn').onclick=()=>{
+  const b=$('saveBtn');
+  b.disabled=true; b.style.background='#15803d'; b.innerHTML='<span>✓</span> บันทึกแล้ว';
+  setTimeout(()=>{
+    $('checkView').classList.add('hidden'); $('pickView').classList.remove('hidden');
+    b.disabled=false; b.style.background='#16a34a'; b.innerHTML='<span>✓</span> บันทึกเอกสาร';
+    loadDocs();
+  }, 450);
+};
 $('ckOpenBtn').onclick=()=>{const c=$('ckCode').value.trim();if(c)openDoc(c);};
 $('ckCode').addEventListener('keydown',e=>{if(e.key==='Enter'){const c=$('ckCode').value.trim();if(c)openDoc(c);}});
 
