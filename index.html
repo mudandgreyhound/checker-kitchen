@@ -132,7 +132,7 @@ function docCard(x, badge){
   return `<div class="card p-4 flex items-center gap-3 active:bg-orange-50" onclick="openDoc('${x.tro_code}')">
       <div class="flex-1">
         <div class="font-extrabold num text-lg" style="color:#FF671F">TO-${x.kitchen} ${String(x.tro_code).padStart(7,'0')}</div>
-        <div class="text-sm text-gray-500">→ ร้าน ${x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น</div>
+        <div class="text-sm text-gray-500">→ ร้าน ${x.shop_name||x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น</div>
       </div>${badge}
       <div class="text-gray-300 text-xl">›</div>
     </div>`;
@@ -191,8 +191,8 @@ async function openDoc(code){
     const d=await api('/api/doc/'+encodeURIComponent(code));
     curDoc=d;
     $('cvDoc').textContent=d.header.document_no;
-    $('cvKit').textContent=d.header.kitchen;
-    $('cvShop').textContent=d.header.shop||'—';
+    $('cvKit').textContent=d.header.kitchen_name||d.header.kitchen;
+    $('cvShop').textContent=d.header.shop_name||d.header.shop||'—';
     $('cvDate').textContent=d.header.de_date||'—';
     renderItems();
     $('pickView').classList.add('hidden');$('checkView').classList.remove('hidden');
@@ -242,7 +242,7 @@ async function saveQty(idx){
 }
 
 async function boot(){
-  $('userLabel').textContent=(curUser.full_name||curUser.username)+' · ครัว '+(curUser.kitchen||'ทุกครัว');
+  $('userLabel').textContent=(curUser.full_name||curUser.username)+' · ครัว '+(curUser.kitchen_name||curUser.kitchen||'ทุกครัว');
   await loadDocs();
 }
 
@@ -263,7 +263,7 @@ $('ckOpenBtn').onclick=()=>{const c=$('ckCode').value.trim();if(c)openDoc(c);};
 $('ckCode').addEventListener('keydown',e=>{if(e.key==='Enter'){const c=$('ckCode').value.trim();if(c)openDoc(c);}});
 
 (async function(){
-  if(getTok()){try{const m=await api('/api/me');curUser={username:m.username,role:m.role,kitchen:m.kitchen};showApp();await boot();return;}catch{}}
+  if(getTok()){try{const m=await api('/api/me');curUser={username:m.username,role:m.role,kitchen:m.kitchen,kitchen_name:m.kitchen_name};showApp();await boot();return;}catch{}}
   showLogin();
 })();
 </script>
