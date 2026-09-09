@@ -138,10 +138,11 @@ function docCard(x, badge){
       : `openDoc('${x.tro_code}')`;
   const lockTag = lockedOther ? ` <span class="text-[11px] font-bold text-red-500">🔒 ${x.locked_by}</span>` : '';
   const cls = lockedOther ? 'opacity-60' : 'active:bg-orange-50';
+  const sendDate = x.de_date ? ` · ส่ง ${x.de_date.slice(0,10)}` : '';
   return `<div class="card p-4 flex items-center gap-3 ${cls}" onclick="${onclick}">
       <div class="flex-1">
         <div class="font-extrabold num text-lg" style="color:#FF671F">TO-${x.kitchen} ${String(x.tro_code).padStart(7,'0')}</div>
-        <div class="text-sm text-gray-500">→ ร้าน ${x.shop_name||x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น${lockTag}</div>
+        <div class="text-sm text-gray-500">→ ร้าน ${x.shop_name||x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น${sendDate}${lockTag}</div>
       </div>${badge}
       <div class="text-gray-300 text-xl">›</div>
     </div>`;
