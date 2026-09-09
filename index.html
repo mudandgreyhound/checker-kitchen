@@ -6,14 +6,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Checker · Dunkin</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Prompt:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   body{font-family:'Prompt','Nunito',sans-serif;background:#faf7f3;-webkit-tap-highlight-color:transparent}
   .num{font-family:'Nunito',sans-serif}
   .card{background:#fff;border:1px solid #f0ece6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
   input,button{touch-action:manipulation}
-  .stepbtn{width:52px;height:52px;font-size:26px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;user-select:none}
-  .stepbtn-sm{width:44px;height:44px;font-size:22px;font-weight:800;border-radius:11px;display:flex;align-items:center;justify-content:center;user-select:none;flex-shrink:0}
+  .stepbtn{width:56px;height:56px;font-size:28px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;user-select:none;flex-shrink:0}
+  .quickbtn{padding:8px 12px;font-size:15px;font-weight:700;border-radius:10px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;user-select:none;flex-shrink:0}
+  .quickbtn:active{background:#e2e8f0}
   ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#e5ded5;border-radius:6px}
 </style>
 </head>
@@ -38,9 +40,9 @@
   <header class="bg-white border-b border-gray-100 sticky top-0 z-20">
     <div class="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
       <span class="text-2xl">✅</span>
-      <div>
+      <div class="min-w-0">
         <div class="font-extrabold text-lg" style="color:#FF671F">Checker</div>
-        <div class="text-xs text-gray-400" id="userLabel"></div>
+        <div class="text-xs text-gray-400 truncate" id="userLabel"></div>
       </div>
       <button id="logoutBtn" class="ml-auto px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">ออก</button>
     </div>
@@ -54,6 +56,7 @@
         <div class="flex gap-2">
           <input id="ckCode" inputmode="numeric" placeholder="0138926"
                  class="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-2xl font-extrabold num text-center outline-none focus:border-orange-400">
+          <button id="ocrBtn" class="px-4 rounded-xl font-bold text-white text-2xl" style="background:#334155" title="สแกนด้วยกล้อง">📷</button>
           <button id="ckOpenBtn" class="px-6 rounded-xl font-bold text-white text-lg" style="background:#FF671F">เปิด</button>
         </div>
         <div id="ckErr" class="hidden mt-2 text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2"></div>
@@ -66,7 +69,7 @@
       <div id="docList" class="space-y-2"></div>
     </div>
 
-    <!-- ── เช็คใบ ── -->
+    <!-- ── เช็คใบ (workspace) ── -->
     <div id="checkView" class="hidden">
       <div class="card p-4 mb-3" style="background:linear-gradient(90deg,#FFF4EC,#FDECF4)">
         <div class="text-lg font-extrabold" id="cvDoc" style="color:#FF671F"></div>
@@ -81,21 +84,35 @@
           <div class="text-xs font-bold text-gray-500"><span id="cvDone">0</span>/<span id="cvTotal">0</span></div>
         </div>
       </div>
-      <div id="itemList" class="space-y-1.5 pb-3"></div>
-      <div class="flex gap-2 mb-6">
-        <button id="exitBtn" class="flex-1 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-100 text-lg">ออก (ยังไม่เสร็จ)</button>
-        <button id="saveBtn" class="flex-1 py-3.5 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2" style="background:#16a34a"><span>✓</span> เสร็จ</button>
+      <div id="itemList" class="space-y-2 pb-3"></div>
+      <div class="flex gap-2 pb-6">
+        <button id="exitBtn" class="flex-1 py-4 rounded-xl font-bold text-gray-600 bg-gray-100 text-lg">ออก (พักไว้)</button>
+        <button id="saveBtn" class="flex-1 py-4 rounded-xl font-bold text-white text-lg flex items-center justify-center gap-2" style="background:#16a34a"><span>✓</span> เสร็จ</button>
       </div>
     </div>
   </main>
 </div>
 
+<!-- ══════════ OCR MODAL ══════════ -->
+<div id="ocrModal" class="hidden fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center px-4">
+  <div class="w-full max-w-md">
+    <div class="text-white text-center font-bold mb-2">เล็งกล้องที่ช่อง <span style="color:#FFB27A">Document No.</span></div>
+    <div class="relative rounded-2xl overflow-hidden bg-black" style="aspect-ratio:4/3">
+      <video id="ocrVideo" class="w-full h-full object-cover" playsinline muted></video>
+      <div class="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-16 border-2 border-dashed border-orange-400 rounded-lg"></div>
+    </div>
+    <div id="ocrStatus" class="text-center text-sm text-gray-200 mt-2 h-5"></div>
+    <div class="flex gap-2 mt-3">
+      <button id="ocrCancel" class="flex-1 py-3 rounded-xl font-bold text-gray-700 bg-gray-200">ยกเลิก</button>
+      <button id="ocrShot" class="flex-1 py-3 rounded-xl font-bold text-white" style="background:#FF671F">📸 ถ่าย & อ่าน</button>
+    </div>
+  </div>
+</div>
+<canvas id="ocrCanvas" class="hidden"></canvas>
+
 <script>
-// ⚙️ ตั้ง URL ของ Backend API ที่นี่ (server ที่รัน FastAPI :8600)
-//   - ถ้า frontend อยู่บน GitHub Pages: ใส่ URL server เต็ม เช่น 'https://kitchen-api.mobile1234.site'
-//   - ถ้า frontend เสิร์ฟจาก server เดียวกับ API: ใช้ '' (same-origin)
-//   ⚠️ ต้องเป็น https ถ้า frontend เป็น https (กัน mixed-content ถูก browser บล็อก)
-const API_BASE = 'https://kitchen_checker.mobile1234.site';   // ← แก้ตรงนี้ให้ตรง server จริง
+// ⚙️ Backend API (Checker :8601)
+const API_BASE = 'https://kitchen_checker.mobile1234.site';
 const API = API_BASE || location.origin;
 const TOKEN_KEY = 'ks_token';
 const getTok = ()=>{ try{return localStorage.getItem(TOKEN_KEY)}catch{return null} };
@@ -103,7 +120,7 @@ const setTok = (t)=>{ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.remo
 const authH  = ()=>{ const t=getTok(); return t?{'Authorization':'Bearer '+t}:{} };
 const fmt = (n,d=0)=> (Number(n)||0).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const $ = (id)=>document.getElementById(id);
-let searchTimer=null, curUser=null, curDoc=null;
+let curUser=null, curDoc=null, ocrStream=null;
 
 async function api(path,opts={}){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authH(),...(opts.headers||{})}});
@@ -127,22 +144,19 @@ async function doLogin(){
   finally{$('lgBtn').disabled=false;$('lgBtn').textContent='เข้าสู่ระบบ';}
 }
 
-// ── list docs ──
-// ── list docs (แยก 3 กลุ่ม: 🟠 ยังไม่เช็ค → 🟡 กำลังเช็ค → 🟢 เช็คครบ) ──
+// ── list docs (3 กลุ่ม: 🟠 ยังไม่เช็ค → 🟡 กำลังเช็ค → 🟢 เสร็จ) ──
 function docCard(x, badge){
   const now=Date.now();
   const lockedOther = x.locked_by && x.locked_by!==(curUser&&curUser.username)
       && x.locked_at && (now - new Date(x.locked_at).getTime() < 30*60*1000);
-  const onclick = lockedOther
-      ? `alert('ใบนี้กำลังถูกเช็คโดย ${x.locked_by}')`
-      : `openDoc('${x.tro_code}')`;
+  const onclick = lockedOther ? `alert('ใบนี้กำลังถูกเช็คโดย ${x.locked_by}')` : `openDoc('${x.tro_code}')`;
   const lockTag = lockedOther ? ` <span class="text-[11px] font-bold text-red-500">🔒 ${x.locked_by}</span>` : '';
   const cls = lockedOther ? 'opacity-60' : 'active:bg-orange-50';
   const sendDate = x.de_date ? ` · ส่ง ${x.de_date.slice(0,10)}` : '';
   return `<div class="card p-4 flex items-center gap-3 ${cls}" onclick="${onclick}">
-      <div class="flex-1">
+      <div class="flex-1 min-w-0">
         <div class="font-extrabold num text-lg" style="color:#FF671F">TO-${x.kitchen} ${String(x.tro_code).padStart(7,'0')}</div>
-        <div class="text-sm text-gray-500">→ ร้าน ${x.shop_name||x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น${sendDate}${lockTag}</div>
+        <div class="text-sm text-gray-500 truncate">→ ร้าน ${x.shop_name||x.shop||'—'} · ${x.n_item} รายการ · ${fmt(x.total_qty)} ชิ้น${sendDate}${lockTag}</div>
       </div>${badge}
       <div class="text-gray-300 text-xl">›</div>
     </div>`;
@@ -183,9 +197,9 @@ async function loadDocs(){
   const lockValid = x => x.locked_by && x.locked_at && (now - new Date(x.locked_at).getTime() < 30*60*1000);
   const pending=[], doing=[], done=[];
   d.docs.forEach(x=>{
-    if(x.status==='done')                    done.push(x);      // 🟢 กดเสร็จแล้ว
-    else if(lockValid(x) || x.n_checked>0)   doing.push(x);     // 🟡 มีคนล็อก/เช็คบางส่วน
-    else                                      pending.push(x);   // 🟠 ยังไม่แตะ
+    if(x.status==='done')                    done.push(x);
+    else if(lockValid(x) || x.n_checked>0)   doing.push(x);
+    else                                      pending.push(x);
   });
   const bPending=x=>`<span class="text-xs font-bold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
   const bDoing  =x=>`<span class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">${x.n_checked}/${x.n_item}</span>`;
@@ -213,6 +227,7 @@ async function openDoc(code){
 }
 window.openDoc=openDoc;
 
+// ── render items (mockup-style + quick buttons) ──
 function renderItems(){
   const its=curDoc.items;
   const done=its.filter(i=>i.qty_checked!==null).length;
@@ -220,19 +235,33 @@ function renderItems(){
   $('cvBar').style.width=(its.length?done/its.length*100:0)+'%';
   $('itemList').innerHTML=its.map((it,idx)=>{
     const checked=it.qty_checked!==null;
-    const val=checked?it.qty_checked:it.qty_system;
-    const diff=checked?(it.qty_checked-it.qty_system):0;
-    const by=it.checked_by?`<span class="text-[11px] text-gray-400">โดย ${it.checked_by} ${it.checked_at||''}</span>`:'';
-    return `<div class="card px-3 py-2 flex items-center gap-2 ${checked?'ring-1 ring-green-200':''}">
-      <div class="flex-1 min-w-0">
-        <div class="num text-xl font-extrabold tracking-wide leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-base\">✓</span>':''}</div>
-        <div class="text-xs text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(it.qty_system)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
-        ${it.checked_by?`<div class="text-[10px] text-gray-300">โดย ${it.checked_by} ${it.checked_at||''}</div>`:''}
+    const sys=Number(it.qty_system)||0;
+    const val=checked?it.qty_checked:sys;
+    const diff=checked?(it.qty_checked-sys):0;
+    let ring='border-l-4 border-l-slate-300', bg='';
+    if(checked && diff===0){ ring='border-l-4 border-l-green-500'; bg='background:#E8F5E9'; }
+    else if(checked){ ring='border-l-4 border-l-amber-500'; bg='background:#FFF4E5'; }
+    // quick buttons ตามขนาด qty_system
+    let quicks='';
+    if(sys>=12) quicks+=`<button class="quickbtn" onclick="stepQty(${idx},12)">+12</button>`;
+    if(sys>=6)  quicks+=`<button class="quickbtn" onclick="stepQty(${idx},6)">+6</button>`;
+    quicks+=`<button class="quickbtn" style="background:#FFF0E6;color:#c2410c;border-color:#ffd9bd" onclick="setQty(${idx},${sys})">ครบ</button>`;
+    return `<div class="card ${ring} p-3" style="${bg}">
+      <div class="flex items-start gap-2">
+        <div class="flex-1 min-w-0">
+          <div class="num text-xl font-extrabold tracking-wide leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-base\">✓</span>':''}</div>
+          <div class="text-sm text-gray-500 truncate">${it.name||'—'}</div>
+          <div class="mt-1"><span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">ระบบ ${fmt(sys)} ชิ้น</span>${diff!==0?` <span class="text-[11px] font-bold ${diff<0?'text-red-600':'text-green-600'}">${diff>0?'+':''}${diff}</span>`:''}</div>
+          ${it.checked_by?`<div class="text-[10px] text-gray-300 mt-0.5">โดย ${it.checked_by} ${it.checked_at||''}</div>`:''}
+        </div>
       </div>
-      <button class="stepbtn-sm bg-gray-100 text-gray-700 active:bg-gray-200" onclick="stepQty(${idx},-1)">−</button>
-      <input id="qi${idx}" inputmode="numeric" value="${val}" onchange="saveQty(${idx})"
-             class="w-16 h-11 text-center text-xl font-extrabold num rounded-lg border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
-      <button class="stepbtn-sm text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
+      <div class="flex items-center gap-2 mt-2 flex-wrap justify-end">
+        ${quicks}
+        <button class="stepbtn bg-red-50 text-red-600 active:bg-red-100" onclick="stepQty(${idx},-1)">−</button>
+        <input id="qi${idx}" inputmode="numeric" value="${val}" onchange="saveQty(${idx})"
+               class="w-20 h-14 text-center text-2xl font-extrabold num rounded-xl border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
+        <button class="stepbtn text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
+      </div>
     </div>`;}).join('');
 }
 
@@ -241,6 +270,12 @@ function stepQty(idx,delta){
   inp.value=Math.max(0,(parseInt(inp.value)||0)+delta);
   saveQty(idx);
 }
+function setQty(idx,val){
+  $('qi'+idx).value=Math.max(0,val);
+  saveQty(idx);
+}
+window.stepQty=stepQty; window.setQty=setQty;
+
 async function saveQty(idx){
   const it=curDoc.items[idx];
   const qty=Math.max(0,parseInt($('qi'+idx).value)||0);
@@ -252,22 +287,60 @@ async function saveQty(idx){
     renderItems();
   }catch(e){ console.error('save error',e); alert('บันทึกไม่สำเร็จ: '+(e.message||e)); }
 }
+window.saveQty=saveQty;
 
 async function boot(){
   $('userLabel').textContent=(curUser.full_name||curUser.username)+' · ครัว '+(curUser.kitchen_name||curUser.kitchen||'ทุกครัว');
   await loadDocs();
 }
 
+// ── OCR (กล้องอ่านเลขเอกสาร) ──
+async function startOCR(){
+  $('ocrModal').classList.remove('hidden');
+  $('ocrStatus').textContent='';
+  try{
+    ocrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const v=$('ocrVideo'); v.srcObject=ocrStream; await v.play();
+  }catch(e){ $('ocrStatus').textContent='เปิดกล้องไม่ได้: '+(e.message||e); }
+}
+function stopOCR(){
+  if(ocrStream){ ocrStream.getTracks().forEach(t=>t.stop()); ocrStream=null; }
+  $('ocrModal').classList.add('hidden');
+}
+async function shotOCR(){
+  const v=$('ocrVideo'), c=$('ocrCanvas');
+  if(!v.videoWidth){ $('ocrStatus').textContent='กล้องยังไม่พร้อม'; return; }
+  // crop เฉพาะแถบกลาง (บริเวณกรอบเล็ง) เพื่อความแม่น
+  const cw=v.videoWidth, ch=v.videoHeight;
+  const sy=Math.round(ch*0.40), sh=Math.round(ch*0.20);
+  c.width=cw; c.height=sh;
+  c.getContext('2d').drawImage(v,0,sy,cw,sh,0,0,cw,sh);
+  $('ocrShot').disabled=true; $('ocrStatus').textContent='กำลังอ่าน...';
+  try{
+    const {data:{text}}=await Tesseract.recognize(c,'eng',{
+      tessedit_char_whitelist:'0123456789TOK- '
+    });
+    const m=text.replace(/\s+/g,' ').match(/(\d{7})/);
+    if(m){
+      $('ckCode').value=m[1];
+      $('ocrStatus').textContent='อ่านได้: '+m[1]+' — ตรวจแล้วกด "เปิด"';
+      setTimeout(stopOCR,800);
+    }else{
+      $('ocrStatus').textContent='อ่านเลขไม่เจอ ลองใหม่ (จ่อให้ชัด/ตรงกรอบ)';
+    }
+  }catch(e){ $('ocrStatus').textContent='อ่านผิดพลาด: '+(e.message||e); }
+  finally{ $('ocrShot').disabled=false; }
+}
+
+// ── events ──
 $('lgBtn').onclick=doLogin;
 $('lgPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 $('logoutBtn').onclick=()=>{setTok(null);curUser=null;showLogin();};
 $('refreshDocs').onclick=()=>loadDocs();
 $('saveBtn').onclick=async ()=>{
-  const b=$('saveBtn');
-  b.disabled=true;
-  try{
-    await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/done',{method:'POST'});
-  }catch(e){ alert('บันทึกไม่สำเร็จ: '+(e.message||e)); b.disabled=false; return; }
+  const b=$('saveBtn'); b.disabled=true;
+  try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/done',{method:'POST'}); }
+  catch(e){ alert('บันทึกไม่สำเร็จ: '+(e.message||e)); b.disabled=false; return; }
   b.style.background='#15803d'; b.innerHTML='<span>✓</span> เสร็จแล้ว';
   setTimeout(()=>{
     $('checkView').classList.add('hidden'); $('pickView').classList.remove('hidden');
@@ -282,6 +355,9 @@ $('exitBtn').onclick=async ()=>{
 };
 $('ckOpenBtn').onclick=()=>{const c=$('ckCode').value.trim();if(c)openDoc(c);};
 $('ckCode').addEventListener('keydown',e=>{if(e.key==='Enter'){const c=$('ckCode').value.trim();if(c)openDoc(c);}});
+$('ocrBtn').onclick=startOCR;
+$('ocrCancel').onclick=stopOCR;
+$('ocrShot').onclick=shotOCR;
 
 (async function(){
   if(getTok()){try{const m=await api('/api/me');curUser={username:m.username,full_name:m.full_name,role:m.role,kitchen:m.kitchen,kitchen_name:m.kitchen_name};showApp();await boot();return;}catch{}}
