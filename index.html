@@ -14,8 +14,7 @@
   .card{background:#fff;border:1px solid #f0ece6;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
   input,button{touch-action:manipulation}
   .stepbtn{width:56px;height:56px;font-size:28px;font-weight:800;border-radius:14px;display:flex;align-items:center;justify-content:center;user-select:none;flex-shrink:0}
-  .stepbtn-sm{width:42px;height:42px;font-size:22px;font-weight:800;border-radius:11px;display:flex;align-items:center;justify-content:center;user-select:none;flex-shrink:0}
-  .quickbtn{padding:5px 8px;font-size:12.5px;font-weight:700;border-radius:8px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;user-select:none;flex-shrink:0}
+  .quickbtn{padding:8px 12px;font-size:15px;font-weight:700;border-radius:10px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0;user-select:none;flex-shrink:0}
   .quickbtn:active{background:#e2e8f0}
   ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#e5ded5;border-radius:6px}
 </style>
@@ -240,24 +239,28 @@ function renderItems(){
     const val=checked?it.qty_checked:sys;
     const diff=checked?(it.qty_checked-sys):0;
     let ring='border-l-4 border-l-slate-300', bg='';
-    if(checked && diff===0){ ring='border-l-4 border-l-green-500'; bg='background:#f0fdf4'; }
-    else if(checked){ ring='border-l-4 border-l-amber-500'; bg='background:#fffbeb'; }
+    if(checked && diff===0){ ring='border-l-4 border-l-green-500'; bg='background:#E8F5E9'; }
+    else if(checked){ ring='border-l-4 border-l-amber-500'; bg='background:#FFF4E5'; }
     // quick buttons ตามขนาด qty_system
     let quicks='';
     if(sys>=12) quicks+=`<button class="quickbtn" onclick="stepQty(${idx},12)">+12</button>`;
     if(sys>=6)  quicks+=`<button class="quickbtn" onclick="stepQty(${idx},6)">+6</button>`;
     quicks+=`<button class="quickbtn" style="background:#FFF0E6;color:#c2410c;border-color:#ffd9bd" onclick="setQty(${idx},${sys})">ครบ</button>`;
-    return `<div class="card ${ring} px-3 py-2 flex items-center gap-2" style="${bg}">
-      <div class="flex-1 min-w-0">
-        <div class="num text-base font-extrabold leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-sm\">✓</span>':''}</div>
-        <div class="text-xs text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(sys)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
+    return `<div class="card ${ring} p-3" style="${bg}">
+      <div class="flex items-start gap-2">
+        <div class="flex-1 min-w-0">
+          <div class="num text-xl font-extrabold tracking-wide leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-base\">✓</span>':''}</div>
+          <div class="text-sm text-gray-500 truncate">${it.name||'—'}</div>
+          <div class="mt-1"><span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">ระบบ ${fmt(sys)} ชิ้น</span>${diff!==0?` <span class="text-[11px] font-bold ${diff<0?'text-red-600':'text-green-600'}">${diff>0?'+':''}${diff}</span>`:''}</div>
+          ${it.checked_by?`<div class="text-[10px] text-gray-300 mt-0.5">โดย ${it.checked_by} ${it.checked_at||''}</div>`:''}
+        </div>
       </div>
-      <div class="flex items-center gap-1 flex-shrink-0">
+      <div class="flex items-center gap-2 mt-2 flex-wrap justify-end">
         ${quicks}
-        <button class="stepbtn-sm bg-red-50 text-red-600 active:bg-red-100" onclick="stepQty(${idx},-1)">−</button>
+        <button class="stepbtn bg-red-50 text-red-600 active:bg-red-100" onclick="stepQty(${idx},-1)">−</button>
         <input id="qi${idx}" inputmode="numeric" value="${val}" onchange="saveQty(${idx})"
-               class="w-14 h-11 text-center text-xl font-extrabold num rounded-lg border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
-        <button class="stepbtn-sm text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
+               class="w-20 h-14 text-center text-2xl font-extrabold num rounded-xl border-2 ${checked?'border-green-300 bg-green-50':'border-gray-200'} outline-none focus:border-orange-400">
+        <button class="stepbtn text-white active:opacity-80" style="background:#FF671F" onclick="stepQty(${idx},1)">+</button>
       </div>
     </div>`;}).join('');
 }
