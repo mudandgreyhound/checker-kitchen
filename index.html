@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Checker · Dunkin</title>
+<script>
+(function(){ try{
+  var v=localStorage.getItem('ks_fontsize');
+  if(v) document.documentElement.style.fontSize=v+'px';
+}catch(e){} })();
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Prompt:wght@500;600;700&display=swap" rel="stylesheet">
@@ -45,8 +51,12 @@
         <div class="font-extrabold text-lg" style="color:#FF671F">Checker</div>
         <div class="text-xs text-gray-400 truncate" id="userLabel"></div>
       </div>
-      <button id="backBtn" class="hidden ml-auto px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">← Back</button>
-      <button id="logoutBtn" class="ml-auto px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">log out</button>
+      <div class="ml-auto flex items-center gap-1.5 flex-shrink-0">
+        <button id="fontDownBtn" class="w-9 h-9 rounded-lg text-sm font-extrabold text-gray-600 bg-gray-100 flex items-center justify-center" title="ตัวอักษรเล็กลง">A−</button>
+        <button id="fontUpBtn" class="w-9 h-9 rounded-lg text-base font-extrabold text-gray-600 bg-gray-100 flex items-center justify-center" title="ตัวอักษรใหญ่ขึ้น">A+</button>
+        <button id="backBtn" class="hidden px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">← Back</button>
+        <button id="logoutBtn" class="px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">log out</button>
+      </div>
     </div>
   </header>
 
@@ -353,6 +363,24 @@ async function shotOCR(){
   }catch(e){ $('ocrStatus').textContent='อ่านผิดพลาด: '+(e.message||e); }
   finally{ $('ocrShot').disabled=false; }
 }
+
+// ── ปรับขนาดตัวอักษร (A-/A+) ──
+const FONT_KEY='ks_fontsize', FONT_MIN=14, FONT_MAX=24, FONT_STEP=2, FONT_DEFAULT=16;
+function getFontSize(){ return parseInt(getComputedStyle(document.documentElement).fontSize)||FONT_DEFAULT; }
+function updateFontBtns(){
+  const v=getFontSize();
+  $('fontDownBtn').disabled=v<=FONT_MIN; $('fontDownBtn').style.opacity=v<=FONT_MIN?'0.4':'1';
+  $('fontUpBtn').disabled=v>=FONT_MAX;   $('fontUpBtn').style.opacity=v>=FONT_MAX?'0.4':'1';
+}
+function setFontSize(px){
+  px=Math.max(FONT_MIN,Math.min(FONT_MAX,px));
+  document.documentElement.style.fontSize=px+'px';
+  try{localStorage.setItem(FONT_KEY,px);}catch(e){}
+  updateFontBtns();
+}
+$('fontDownBtn').onclick=()=>setFontSize(getFontSize()-FONT_STEP);
+$('fontUpBtn').onclick=()=>setFontSize(getFontSize()+FONT_STEP);
+updateFontBtns();
 
 // ── events ──
 $('lgBtn').onclick=doLogin;
