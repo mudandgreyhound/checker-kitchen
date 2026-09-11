@@ -251,8 +251,8 @@ function renderItems(){
     quicks+=`<button class="quickbtn" style="background:#FFF0E6;color:#c2410c;border-color:#ffd9bd" onclick="setQty(${idx},${sys})">ครบ</button>`;
     return `<div class="card ${ring} px-3 py-2 flex items-center gap-2" style="${bg}">
       <div class="flex-1 min-w-0">
-        <div class="num text-xl font-extrabold leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-sm\">✓</span>':''}</div>
-        <div class="text-sm text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(sys)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
+        <div class="num text-2xl font-extrabold leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-sm\">✓</span>':''}</div>
+        <div class="text-xl text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(sys)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
       </div>
       <div class="flex items-center gap-1 flex-shrink-0">
         ${quicks}
