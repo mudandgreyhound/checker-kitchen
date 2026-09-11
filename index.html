@@ -301,13 +301,23 @@ async function loadDocs(){
     + docSection(done,   '🟢','เช็คครบ',   '#15803d',bDone,   true, false);
 }
 
+function isDocDoneHeader(h){
+  if(!h) return false;
+  const s = h.status ?? h.doc_status ?? h.docStatus;
+  if(s!=null && String(s).toLowerCase()==='done') return true;
+  if(h.is_done===true || h.isDone===true || h.done===true || h.completed===true) return true;
+  if(h.done_at || h.completed_at || h.saved_at || h.finished_at || h.doneAt) return true;
+  return false;
+}
+
 // ── open doc ──
 async function openDoc(code, isDone){
   $('ckErr').classList.add('hidden');
   try{
     const d=await api('/api/doc/'+encodeURIComponent(code));
     curDoc=d;
-    curDocDone = !!isDone || lookupDocStatus(code)==='done' || d.header.status==='done';
+    curDocDone = !!isDone || lookupDocStatus(code)==='done' || isDocDoneHeader(d.header);
+    console.log('[Checker] done-status check', {code, fromClickParam:isDone, fromListCache:lookupDocStatus(code), header:d.header, resolvedCurDocDone:curDocDone});
     $('cvDoc').textContent=d.header.document_no;
     $('cvKit').textContent=d.header.kitchen_name||d.header.kitchen;
     $('cvShop').textContent=d.header.shop_name||d.header.shop||'—';
