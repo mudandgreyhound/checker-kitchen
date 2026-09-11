@@ -330,7 +330,7 @@ async function openDoc(code, isDone){
     const d=await api('/api/doc/'+encodeURIComponent(code));
     curDoc=d;
     curDocDone = !!isDone || (cached && cached.status==='done') || isDocDoneHeader(d.header);
-    console.log('[Checker] done-status check', {code, fromClickParam:isDone, fromListCache:cached&&cached.status, header:d.header, resolvedCurDocDone:curDocDone});
+    console.log('[Checker] done-status check', {code, fromClickParam:isDone, cachedRecord:cached, header:d.header, resolvedCurDocDone:curDocDone});
     $('cvDoc').textContent=d.header.document_no;
     $('cvKit').textContent=d.header.kitchen_name||d.header.kitchen;
     $('cvShop').textContent=d.header.shop_name||d.header.shop||'—';
@@ -510,11 +510,11 @@ $('saveBtn').onclick=async ()=>{
   }, 450);
 };
 $('exitBtn').onclick=async ()=>{
-  if(!curDocDone){
-    try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/release',{method:'POST'}); }catch(e){}
-  }
+  const b=$('exitBtn'); b.disabled=true;
+  try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/release',{method:'POST'}); }catch(e){}
   showPickView();
-  loadDocs();
+  await loadDocs();
+  b.disabled=false;
 };
 $('backBtn').onclick=()=>$('exitBtn').click();
 $('ckOpenBtn').onclick=()=>{const c=$('ckCode').value.trim();if(c)openDoc(c);};
