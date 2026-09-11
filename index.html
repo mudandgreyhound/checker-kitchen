@@ -157,6 +157,18 @@ const fmt = (n,d=0)=> (Number(n)||0).toLocaleString('en-US',{minimumFractionDigi
 const $ = (id)=>document.getElementById(id);
 let curUser=null, curDoc=null, ocrStream=null, curDocDone=false;
 let curDateFilter=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
+const docCache=new Map();
+function cacheDocs(list){
+  docCache.clear();
+  (list||[]).forEach(x=>{
+    const raw=String(x.tro_code), padded=raw.padStart(7,'0'), numeric=String(Number(x.tro_code));
+    docCache.set(raw,x.status); docCache.set(padded,x.status); docCache.set(numeric,x.status);
+  });
+}
+function lookupDocStatus(code){
+  const raw=String(code).trim(), padded=raw.padStart(7,'0'), numeric=String(Number(raw));
+  return docCache.get(raw) ?? docCache.get(padded) ?? docCache.get(numeric);
+}
 
 async function api(path,opts={}){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authH(),...(opts.headers||{})}});
@@ -260,6 +272,7 @@ window.setDateFilter=setDateFilter;
 
 async function loadDocs(){
   const d=await api('/api/docs');
+  cacheDocs(d.docs);
   const box=$('docList');
   const tabBox=$('dateTabs');
   if(!d.docs.length){box.innerHTML='<div class="text-center text-gray-400 py-8">ยังไม่มีใบ</div>';tabBox.innerHTML='';return;}
@@ -294,7 +307,7 @@ async function openDoc(code, isDone){
   try{
     const d=await api('/api/doc/'+encodeURIComponent(code));
     curDoc=d;
-    curDocDone = !!isDone || d.header.status==='done';
+    curDocDone = !!isDone || lookupDocStatus(code)==='done' || d.header.status==='done';
     $('cvDoc').textContent=d.header.document_no;
     $('cvKit').textContent=d.header.kitchen_name||d.header.kitchen;
     $('cvShop').textContent=d.header.shop_name||d.header.shop||'—';
