@@ -157,18 +157,25 @@ const fmt = (n,d=0)=> (Number(n)||0).toLocaleString('en-US',{minimumFractionDigi
 const $ = (id)=>document.getElementById(id);
 let curUser=null, curDoc=null, ocrStream=null, curDocDone=false;
 let curDateFilter=(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());})();
-const docCache=new Map();
+const docCache=new Map(); // tro_code (หลายรูปแบบ) → doc record ล่าสุดจาก /api/docs
 function cacheDocs(list){
   docCache.clear();
   (list||[]).forEach(x=>{
     const raw=String(x.tro_code), padded=raw.padStart(7,'0'), numeric=String(Number(x.tro_code));
-    docCache.set(raw,x.status); docCache.set(padded,x.status); docCache.set(numeric,x.status);
+    docCache.set(raw,x); docCache.set(padded,x); docCache.set(numeric,x);
   });
 }
-function lookupDocStatus(code){
+function lookupDoc(code){
   const raw=String(code).trim(), padded=raw.padStart(7,'0'), numeric=String(Number(raw));
-  return docCache.get(raw) ?? docCache.get(padded) ?? docCache.get(numeric);
+  return docCache.get(raw) || docCache.get(padded) || docCache.get(numeric) || null;
 }
+function isLockedByOther(x){
+  if(!x || !x.locked_by) return false;
+  if(curUser && x.locked_by===curUser.username) return false;
+  if(!x.locked_at) return false;
+  return (Date.now() - new Date(x.locked_at).getTime()) < 30*60*1000;
+}
+
 
 async function api(path,opts={}){
   const r=await fetch(API+path,{...opts,headers:{'Content-Type':'application/json',...authH(),...(opts.headers||{})}});
@@ -313,11 +320,17 @@ function isDocDoneHeader(h){
 // ── open doc ──
 async function openDoc(code, isDone){
   $('ckErr').classList.add('hidden');
+  const cached=lookupDoc(code);
+  if(isLockedByOther(cached)){
+    $('ckErr').textContent='ใบนี้กำลังถูกเช็คโดย '+cached.locked_by;
+    $('ckErr').classList.remove('hidden');
+    return;
+  }
   try{
     const d=await api('/api/doc/'+encodeURIComponent(code));
     curDoc=d;
-    curDocDone = !!isDone || lookupDocStatus(code)==='done' || isDocDoneHeader(d.header);
-    console.log('[Checker] done-status check', {code, fromClickParam:isDone, fromListCache:lookupDocStatus(code), header:d.header, resolvedCurDocDone:curDocDone});
+    curDocDone = !!isDone || (cached && cached.status==='done') || isDocDoneHeader(d.header);
+    console.log('[Checker] done-status check', {code, fromClickParam:isDone, fromListCache:cached&&cached.status, header:d.header, resolvedCurDocDone:curDocDone});
     $('cvDoc').textContent=d.header.document_no;
     $('cvKit').textContent=d.header.kitchen_name||d.header.kitchen;
     $('cvShop').textContent=d.header.shop_name||d.header.shop||'—';
