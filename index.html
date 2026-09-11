@@ -45,6 +45,7 @@
         <div class="font-extrabold text-lg" style="color:#FF671F">Checker</div>
         <div class="text-xs text-gray-400 truncate" id="userLabel"></div>
       </div>
+      <button id="backBtn" class="hidden ml-auto px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">← Back</button>
       <button id="logoutBtn" class="ml-auto px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">log out</button>
     </div>
   </header>
@@ -223,6 +224,7 @@ async function openDoc(code){
     $('cvDate').textContent=d.header.de_date||'—';
     renderItems();
     $('pickView').classList.add('hidden');$('checkView').classList.remove('hidden');
+    $('logoutBtn').classList.add('hidden');$('backBtn').classList.remove('hidden');
     window.scrollTo(0,0);
   }catch(e){$('ckErr').textContent=e.message;$('ckErr').classList.remove('hidden');}
 }
@@ -341,6 +343,7 @@ $('saveBtn').onclick=async ()=>{
   b.style.background='#15803d'; b.innerHTML='<span>✓</span> เสร็จแล้ว';
   setTimeout(()=>{
     $('checkView').classList.add('hidden'); $('pickView').classList.remove('hidden');
+    $('backBtn').classList.add('hidden');$('logoutBtn').classList.remove('hidden');
     b.disabled=false; b.style.background='#16a34a'; b.innerHTML='<span>✓</span> เสร็จ';
     loadDocs();
   }, 450);
@@ -348,8 +351,10 @@ $('saveBtn').onclick=async ()=>{
 $('exitBtn').onclick=async ()=>{
   try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/release',{method:'POST'}); }catch(e){}
   $('checkView').classList.add('hidden'); $('pickView').classList.remove('hidden');
+  $('backBtn').classList.add('hidden');$('logoutBtn').classList.remove('hidden');
   loadDocs();
 };
+$('backBtn').onclick=()=>$('exitBtn').click();
 $('ckOpenBtn').onclick=()=>{const c=$('ckCode').value.trim();if(c)openDoc(c);};
 $('ckCode').addEventListener('keydown',e=>{if(e.key==='Enter'){const c=$('ckCode').value.trim();if(c)openDoc(c);}});
 $('ocrBtn').onclick=startOCR;
