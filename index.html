@@ -361,22 +361,19 @@ function renderItems(){
       // อ่านอย่างเดียว: ไม่มีปุ่มปรับจำนวนใดๆ
       return `<div class="card ${ring} px-3 py-2 flex items-center gap-2" style="${bg}">
         <div class="flex-1 min-w-0">
-          <div class="num text-xl font-extrabold leading-tight" style="color:#111">${it.code} <span class="text-green-600 text-base">✓</span></div>
-          <div class="text-sm text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(sys)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
+          <div class="text-xl font-extrabold leading-tight truncate" style="color:#111">${it.name||'—'} <span class="text-gray-400 font-bold">· ระบบ ${fmt(sys)}</span>${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''} <span class="text-green-600 text-base">✓</span></div>
+          <div class="num text-sm text-gray-500 truncate">${it.code}</div>
         </div>
         <div class="num text-2xl font-extrabold flex-shrink-0" style="color:#16a34a">${fmt(val)}</div>
       </div>`;
     }
 
-    // quick buttons ตามขนาด qty_system
-    let quicks='';
-    if(sys>=12) quicks+=`<button class="quickbtn" onclick="stepQty(${idx},12)">+12</button>`;
-    if(sys>=6)  quicks+=`<button class="quickbtn" onclick="stepQty(${idx},6)">+6</button>`;
-    quicks+=`<button class="quickbtn" style="background:#FFF0E6;color:#c2410c;border-color:#ffd9bd" onclick="setQty(${idx},${sys})">ครบ</button>`;
+    // quick button: เอาแค่ "ครบ" (ตัด +12/+6 ออก)
+    const quicks=`<button class="quickbtn" style="background:#FFF0E6;color:#c2410c;border-color:#ffd9bd" onclick="setQty(${idx},${sys})">ครบ</button>`;
     return `<div class="card ${ring} px-3 py-2 flex items-center gap-2" style="${bg}">
       <div class="flex-1 min-w-0">
-        <div class="num text-xl font-extrabold leading-tight" style="color:#111">${it.code} ${checked?'<span class=\"text-green-600 text-base\">✓</span>':''}</div>
-        <div class="text-sm text-gray-500 truncate">${it.name||'—'} <span class="text-gray-400">· ระบบ ${fmt(sys)}${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''}</span></div>
+        <div class="text-xl font-extrabold leading-tight truncate" style="color:#111">${it.name||'—'} <span class="text-gray-400 font-bold">· ระบบ ${fmt(sys)}</span>${diff!==0?` <span class="${diff<0?'text-red-600':'text-green-600'} font-bold">${diff>0?'+':''}${diff}</span>`:''} ${checked?'<span class=\"text-green-600 text-base\">✓</span>':''}</div>
+        <div class="num text-sm text-gray-500 truncate">${it.code}</div>
       </div>
       <div class="flex items-center gap-1 flex-shrink-0">
         ${quicks}
