@@ -180,7 +180,12 @@ function useLocation(){
       if(!allShops.length){ alert("ยังไม่มีร้านที่บันทึกพิกัด — เลือกร้านเองไปก่อน"); loadShops(); return; }
       renderShops();
     }catch(e){ shopList.innerHTML = err(e); }
-  }, ()=>alert("เปิดสิทธิ์ location ไม่ได้ — เลือกร้านเองได้"), {enableHighAccuracy:true, timeout:8000});
+  }, e=>{
+    const msg = {1:"ไม่ได้อนุญาตให้เข้าถึงตำแหน่ง — เปิดสิทธิ์ใน ตั้งค่า iOS/Safari",
+                 2:"หาตำแหน่งไม่ได้ — ลองใกล้หน้าต่าง หรือเปิด WiFi",
+                 3:"หาตำแหน่งช้าเกินไป — ลองกดใหม่อีกครั้ง"}[e.code] || e.message;
+    alert("location (code "+e.code+"): "+msg+"\nเลือกร้านเองได้ตามปกติ");
+  }, {enableHighAccuracy:false, timeout:15000, maximumAge:60000});
 }
 
 // ---------- receive ----------
