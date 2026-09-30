@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>รับ Waste กลับ</title>
+<style>
+  :root{ --bg:#f4f5f7; --card:#fff; --line:#e3e6ea; --ink:#1c2430;
+         --muted:#7a8595; --brand:#e6007e; --ok:#137a3f; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,"Segoe UI",sans-serif;background:var(--bg);
+       color:var(--ink);padding-bottom:70px}
+  header{background:var(--brand);color:#fff;padding:14px 16px;font-weight:700;
+         position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center}
+  header .lo{background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:8px;padding:4px 10px;font-size:13px}
+  .wrap{padding:12px 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:12px 14px;margin-bottom:10px}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .muted{color:var(--muted);font-size:13px}
+  .big{font-size:22px;font-weight:700}
+  input,button{font-size:16px;font-family:inherit}
+  input[type=text],input[type=number],input[type=password]{width:100%;padding:9px 10px;
+        border:1px solid var(--line);border-radius:9px;background:#fff}
+  input[type=number]{width:82px;text-align:center}
+  .btn{background:var(--brand);color:#fff;border:0;border-radius:10px;padding:12px 16px;font-weight:700;width:100%}
+  .btn.sec{background:#eef0f3;color:var(--ink)}
+  .shop{cursor:pointer}
+  .badge{background:#fff0f7;color:var(--brand);border-radius:20px;padding:2px 10px;font-size:13px;font-weight:700}
+  .near{border-color:var(--ok);background:#f2fbf5}
+  nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
+      display:flex;padding-bottom:env(safe-area-inset-bottom,0)}
+  nav button{flex:1;background:none;border:0;padding:11px 0;color:var(--muted);font-size:12px}
+  nav button.on{color:var(--brand);font-weight:700}
+  .hide{display:none}
+  .item{border-bottom:1px solid var(--line);padding:9px 0}
+  .item:last-child{border:0}
+  #login{max-width:360px;margin:40px auto;padding:0 16px}
+  #login input{margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<section id="login">
+  <h2 style="text-align:center;color:var(--brand)">รับ Waste กลับ</h2>
+  <input type="text" id="lgUser" placeholder="username">
+  <input type="password" id="lgPass" placeholder="password" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+  <div class="muted" id="lgErr" style="color:#c0392b;margin-top:8px"></div>
+</section>
+
+<!-- ===== APP ===== -->
+<div id="app" class="hide">
+<header>รับ Waste กลับ <button class="lo" onclick="logout()">ออก</button></header>
+
+<section id="pgShops" class="wrap">
+  <button class="btn sec" style="margin-bottom:10px" onclick="useLocation()">📍 หาร้านใกล้ฉัน</button>
+  <input type="text" id="q" placeholder="ค้นหารหัส/ชื่อสาขา…" oninput="renderShops()" style="margin-bottom:10px">
+  <div id="shopList"></div>
+</section>
+
+<section id="pgRecv" class="wrap hide">
+  <button class="btn sec" style="margin-bottom:10px" onclick="show('shops')">← เลือกร้านอื่น</button>
+  <div class="card"><div class="row"><b id="recvShop"></b><span class="badge" id="recvPend"></span></div></div>
+  <input type="text" id="driver" placeholder="ชื่อคนขับ" style="margin-bottom:10px">
+  <div class="card" id="recvItems"></div>
+  <button class="btn" onclick="submitReceive()">✅ รับของ</button>
+</section>
+
+<section id="pgSum" class="wrap hide">
+  <div class="card">
+    <div class="muted">รับกลับวันนี้ (รวมทุกร้าน)</div>
+    <div class="big" id="sumTotal">–</div>
+    <div class="muted" id="sumMeta"></div>
+  </div>
+  <div class="card" id="sumSku"></div>
+</section>
+
+<nav>
+  <button id="nShops" class="on" onclick="show('shops')">🏪 ร้าน</button>
+  <button id="nSum" onclick="show('sum')">📊 สรุป</button>
+</nav>
+</div>
+
+<script>
+const WR = "/api/waste-return";   // same origin (served จาก static/ ของ checker)
+let allShops = [], cur = null, curItems = [];
+
+// ---------- auth ----------
+function tok(){ return localStorage.getItem('wr_token'); }
+async function doLogin(){
+  lgErr.textContent = "";
+  try{
+    const r = await fetch("/api/login", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:lgUser.value.trim(), password:lgPass.value})});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.detail||"login ไม่สำเร็จ");
+    localStorage.setItem('wr_token', j.token);
+    localStorage.setItem('wr_user', JSON.stringify(j.user||{}));
+    showApp();
+  }catch(e){ lgErr.textContent = e.message; }
+}
+function logout(){ localStorage.removeItem('wr_token'); location.reload(); }
+function showApp(){
+  login.classList.add('hide'); app.classList.remove('hide');
+  const u = JSON.parse(localStorage.getItem('wr_user')||'{}');
+  driver.value = u.full_name || u.username || '';
+  loadShops();
+}
+async function api(path, opts={}){
+  opts.headers = Object.assign({}, opts.headers, tok()?{Authorization:"Bearer "+tok()}:{});
+  const r = await fetch(path, opts);
+  if(r.status===401){ logout(); throw new Error("session หมดอายุ"); }
+  return r;
+}
+
+// ---------- navigation ----------
+function show(pg){
+  pgShops.classList.toggle('hide', pg!=='shops');
+  pgRecv .classList.toggle('hide', pg!=='recv');
+  pgSum  .classList.toggle('hide', pg!=='sum');
+  nShops.classList.toggle('on', pg==='shops');
+  nSum  .classList.toggle('on', pg==='sum');
+  if(pg==='shops') loadShops();
+  if(pg==='sum')   loadSummary();
+}
+
+// ---------- shops ----------
+async function loadShops(){
+  try{ allShops = await (await api(WR+"/shops")).json(); renderShops(); }
+  catch(e){ shopList.innerHTML = err(e); }
+}
+function renderShops(){
+  const kw = (q.value||"").trim().toLowerCase();
+  const list = allShops.filter(s =>
+    s.shop_code.toLowerCase().includes(kw) || (s.shop_name||"").toLowerCase().includes(kw));
+  shopList.innerHTML = list.length ? list.map(s => `
+    <div class="card shop ${s.within_radius?'near':''}" onclick="openShop('${s.shop_code}')">
+      <div class="row">
+        <div><b>${s.shop_name||s.shop_code}</b> <span class="muted">${s.shop_code}</span>
+          ${s.distance_m!=null?`<span class="muted"> · ${s.distance_m} ม.</span>`:''}</div>
+        <span class="badge">${s.pending_qty} ชิ้น</span>
+      </div>
+      <div class="muted">${s.line_count} รายการ · เก่าสุด ${s.oldest_waste_date??''}</div>
+    </div>`).join('') : `<div class="muted">ไม่มีร้านค้างรับ</div>`;
+}
+function useLocation(){
+  if(!navigator.geolocation){ alert("อุปกรณ์ไม่รองรับ location"); return; }
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:lat, longitude:lng} = pos.coords;
+    try{
+      allShops = await (await api(`${WR}/nearby?lat=${lat}&lng=${lng}`)).json();
+      if(!allShops.length){ alert("ยังไม่มีร้านที่บันทึกพิกัด — เลือกร้านเองไปก่อน"); loadShops(); return; }
+      renderShops();
+    }catch(e){ shopList.innerHTML = err(e); }
+  }, ()=>alert("เปิดสิทธิ์ location ไม่ได้ — เลือกร้านเองได้"), {enableHighAccuracy:true, timeout:8000});
+}
+
+// ---------- receive ----------
+async function openShop(code){
+  cur = code; recvShop.textContent = code;
+  recvItems.innerHTML = "กำลังโหลด…"; show('recv');
+  try{
+    curItems = await (await api(`${WR}/pending?shop_code=${encodeURIComponent(code)}`)).json();
+    const tot = curItems.reduce((a,i)=>a+Number(i.expected_qty),0);
+    recvPend.textContent = tot+" ชิ้น";
+    recvItems.innerHTML = curItems.map((i,idx)=>`
+      <div class="item"><div class="row">
+        <div><b>${i.item_code}</b><div class="muted">waste ${i.waste_date} · คาด ${i.expected_qty}</div></div>
+        <input type="number" id="q${idx}" value="${i.expected_qty}" min="0">
+      </div></div>`).join('') || `<div class="muted">ไม่มีของค้างรับ</div>`;
+  }catch(e){ recvItems.innerHTML = err(e); }
+}
+function submitReceive(){
+  if(!curItems.length){ alert("ไม่มีรายการ"); return; }
+  const items = curItems.map((i,idx)=>({
+    item_code:i.item_code, waste_date:i.waste_date, expected_qty:Number(i.expected_qty),
+    recv_qty:Number(document.getElementById('q'+idx).value||0)}));
+  const body = {shop_code:cur, driver:driver.value||null, items};
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      p=>{ body.lat=p.coords.latitude; body.lng=p.coords.longitude; post(body); },
+      ()=>post(body), {timeout:5000});
+  } else post(body);
+}
+async function post(body){
+  try{
+    const r = await api(WR+"/receive", {method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.detail||"error");
+    alert(`รับแล้ว ${j.total_recv} ชิ้น`); show('shops');
+  }catch(e){ alert("บันทึกไม่สำเร็จ: "+e.message); }
+}
+
+// ---------- summary ----------
+async function loadSummary(){
+  try{
+    const s = await (await api(WR+"/summary")).json();
+    sumTotal.textContent = s.total_recv+" ชิ้น";
+    sumMeta.textContent  = `${s.date} · ${s.return_count} ใบ`;
+    sumSku.innerHTML = (s.by_sku||[]).map(x=>`
+      <div class="item row"><b>${x.item_code}</b><span>${x.recv_qty}</span></div>`
+    ).join('') || `<div class="muted">ยังไม่มีการรับกลับวันนี้</div>`;
+  }catch(e){ sumSku.innerHTML = err(e); }
+}
+
+const err = e => `<div class="muted">โหลดไม่ได้: ${e.message||e}</div>`;
+
+// เริ่ม: มี token แล้วเข้าเลย ไม่งั้นให้ login
+if(tok()) showApp();
+</script>
+</body>
+</html>
