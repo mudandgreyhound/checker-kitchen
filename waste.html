@@ -168,7 +168,7 @@ function renderShops(){
           ${s.distance_m!=null?`<span class="muted num"> · ${s.distance_m} ม.</span>`:''}</div>
         <span class="badge num">${s.pending_qty} ชิ้น</span>
       </div>
-      <div class="muted num">${s.line_count} รายการ · เก่าสุด ${s.oldest_waste_date??''}</div>
+      <div class="muted num">${s.line_count} รายการ · waste ${s.waste_date??''}</div>
     </div>`).join('') : `<div class="muted">ไม่มีร้านค้างรับ</div>`;
 }
 function useLocation(){
