@@ -81,7 +81,14 @@
 <section id="pgRecv" class="wrap hide">
   <button class="btn sec" style="margin-bottom:10px" onclick="show('shops')">← เลือกร้านอื่น</button>
   <div class="card"><div class="row"><b id="recvShop"></b><span class="badge num" id="recvPend"></span></div></div>
-  <input type="text" id="driver" placeholder="ชื่อคนขับ" style="margin-bottom:10px">
+  <div class="card">
+    <input type="file" id="photoInput" accept="image/*" capture="environment" class="hide">
+    <button class="btn orange" onclick="photoInput.click()">📷 ถ่ายรูปโดนัทที่รับ</button>
+    <div id="photoWrap" class="hide" style="margin-top:10px">
+      <img id="photoPreview" style="width:100%;border-radius:12px;display:block">
+      <div class="muted num" id="photoMeta" style="margin-top:6px"></div>
+    </div>
+  </div>
   <div class="card" id="recvItems"></div>
   <button class="btn green" onclick="submitReceive()">✓ รับของ</button>
 </section>
@@ -108,6 +115,7 @@ const API = API_BASE || location.origin;
 const TOKEN_KEY = 'ks_token';                 // ← คีย์เดียวกับ checker (login ร่วม)
 const WR = '/api/waste-return';
 let allShops = [], cur = null, curItems = [], curUser = {};
+let recvShopName = '', photoData = null, photoCoord = null;
 
 const getTok = ()=>{ try{return localStorage.getItem(TOKEN_KEY)}catch{return null} };
 const setTok = t=>{ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY) }catch{} };
@@ -137,7 +145,6 @@ function showApp(){
   login.classList.add('hide'); app.classList.remove('hide');
   userLabel.textContent = [curUser.full_name||curUser.username, curUser.kitchen_name]
                           .filter(Boolean).join(' · ');
-  driver.value = curUser.full_name || curUser.username || '';
   show('shops');
 }
 
@@ -190,7 +197,10 @@ function useLocation(){
 
 // ---------- receive ----------
 async function openShop(code){
-  cur = code; recvShop.textContent = code;
+  cur = code;
+  const s = allShops.find(x=>x.shop_code===code); recvShopName = (s&&s.shop_name)||'';
+  recvShop.textContent = (recvShopName?recvShopName+' · ':'')+code;
+  photoData=null; photoCoord=null; photoWrap.classList.add('hide'); photoInput.value='';
   recvItems.innerHTML = "กำลังโหลด…"; show('recv');
   try{
     curItems = await api(`${WR}/pending?shop_code=${encodeURIComponent(code)}`);
@@ -203,22 +213,58 @@ async function openShop(code){
       </div></div>`).join('') || `<div class="muted">ไม่มีของค้างรับ</div>`;
   }catch(e){ recvItems.innerHTML = err(e); }
 }
+// ---------- photo: ถ่าย → ดึงพิกัด → ย่อ 1280 + ปั๊กเวลา/พิกัด → preview ----------
+function loadImg(file){ return new Promise((res,rej)=>{
+  const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); }); }
+function getCoordOnce(){ return new Promise(res=>{
+  if(!navigator.geolocation) return res(null);
+  navigator.geolocation.getCurrentPosition(p=>res(p.coords), ()=>res(null),
+    {enableHighAccuracy:true, timeout:8000}); }); }
+
+async function onPhoto(ev){
+  const file = ev.target.files && ev.target.files[0]; if(!file) return;
+  photoWrap.classList.remove('hide'); photoMeta.textContent = 'กำลังอ่านตำแหน่ง…';
+  photoCoord = await getCoordOnce();
+  const img = await loadImg(file);
+  const maxW = 1280; let w = img.naturalWidth, h = img.naturalHeight;
+  if(w > maxW){ h = Math.round(h*maxW/w); w = maxW; }
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0, w, h);
+  const lines = [
+    new Date().toLocaleString('th-TH'),
+    'สาขา '+cur+(recvShopName?(' · '+recvShopName):''),
+    photoCoord ? ('GPS '+photoCoord.latitude.toFixed(6)+', '+photoCoord.longitude.toFixed(6))
+               : 'GPS: ไม่มีสัญญาณ'
+  ];
+  const fs = Math.max(15, Math.round(w*0.028)), pad = Math.round(fs*0.5);
+  const barH = lines.length*(fs+pad)+pad;
+  x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, h-barH, w, barH);
+  x.fillStyle = '#fff'; x.font = 'bold '+fs+'px system-ui,sans-serif'; x.textBaseline = 'top';
+  lines.forEach((t,i)=>x.fillText(t, pad, h-barH+pad+i*(fs+pad)));
+  photoData = c.toDataURL('image/jpeg', 0.7);
+  photoPreview.src = photoData;
+  const kb = Math.round(photoData.length*0.75/1024);
+  photoMeta.textContent = 'พร้อมส่ง · ~'+kb+' KB'+(photoCoord?'':' · ไม่มีพิกัด');
+}
+photoInput.onchange = onPhoto;
+
 function submitReceive(){
   if(!curItems.length){ alert("ไม่มีรายการ"); return; }
+  if(!photoData){ alert("ถ่ายรูปโดนัทก่อนกดรับของ"); return; }
   const items = curItems.map((i,idx)=>({
     item_code:i.item_code, waste_date:i.waste_date, expected_qty:Number(i.expected_qty),
     recv_qty:Number(document.getElementById('q'+idx).value||0)}));
-  const body = {shop_code:cur, driver:driver.value||null, items};
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      p=>{ body.lat=p.coords.latitude; body.lng=p.coords.longitude; post(body); },
-      ()=>post(body), {timeout:5000});
-  } else post(body);
+  const body = {shop_code:cur, driver:(curUser.full_name||curUser.username||null),
+                photo_b64:photoData, items};
+  if(photoCoord){ body.lat = photoCoord.latitude; body.lng = photoCoord.longitude; }
+  post(body);
 }
 async function post(body){
   try{
     const j = await api(WR+'/receive', {method:'POST', body:JSON.stringify(body)});
-    alert(`รับแล้ว ${j.total_recv} ชิ้น`); show('shops');
+    alert(`รับแล้ว ${j.total_recv} ชิ้น`);
+    photoData=null; photoCoord=null; photoWrap.classList.add('hide'); photoInput.value='';
+    show('shops');
   }catch(e){ alert("บันทึกไม่สำเร็จ: "+e.message); }
 }
 
