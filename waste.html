@@ -42,6 +42,15 @@
   .hide{display:none}
   .item{border-bottom:1px solid var(--line);padding:10px 0}
   .item:last-child{border:0}
+  .qrow{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .qbtn{border:0;border-radius:10px;font-weight:800;height:44px;min-width:44px;
+        font-size:20px;line-height:1;cursor:pointer}
+  .qbtn:active{opacity:.8}
+  .qfull{background:#FFF0E6;color:#c2410c;border:1px solid #ffd9bd;min-width:auto;padding:0 12px;font-size:14px}
+  .qminus{background:#fdecec;color:#c0392b}
+  .qplus{background:var(--brand);color:#fff}
+  .qnum{width:60px;height:44px;text-align:center;font-weight:800;
+        border:1px solid #e5e0d8;border-radius:10px}
   #login{max-width:380px;margin:44px auto;padding:0 18px}
   #login input{margin-bottom:11px}
 </style>
@@ -206,13 +215,30 @@ async function openShop(code){
     curItems = await api(`${WR}/pending?shop_code=${encodeURIComponent(code)}`);
     const tot = curItems.reduce((a,i)=>a+Number(i.expected_qty),0);
     recvPend.textContent = tot+" ชิ้น";
-    recvItems.innerHTML = curItems.map((i,idx)=>`
+    recvItems.innerHTML = curItems.map((i,idx)=>{
+      const exp = Number(i.expected_qty);
+      const title = i.item_name || i.item_code;
+      return `
       <div class="item"><div class="row">
-        <div><b>${i.item_code}</b><div class="muted num">waste ${i.waste_date} · คาด ${i.expected_qty}</div></div>
-        <input type="number" id="q${idx}" value="${Number(i.expected_qty)}" min="0">
-      </div></div>`).join('') || `<div class="muted">ไม่มีของค้างรับ</div>`;
+        <div style="flex:1;min-width:0">
+          <b>${title}</b> <span class="muted num">· คาด ${exp}</span>
+          <div class="muted num">${i.item_code} · waste ${i.waste_date}</div>
+        </div>
+        <div class="qrow">
+          <button class="qbtn qfull"  onclick="setQty(${idx},${exp})">ครบ</button>
+          <button class="qbtn qminus" onclick="stepQty(${idx},-1)">−</button>
+          <input class="qnum num" type="number" inputmode="numeric" id="q${idx}" value="${exp}" min="0">
+          <button class="qbtn qplus"  onclick="stepQty(${idx},1)">+</button>
+        </div>
+      </div></div>`;
+    }).join('') || `<div class="muted">ไม่มีของค้างรับ</div>`;
   }catch(e){ recvItems.innerHTML = err(e); }
 }
+// ปุ่มปรับจำนวน
+function setQty(idx, v){ const el=document.getElementById('q'+idx); if(el) el.value=Math.max(0,v); }
+function stepQty(idx, d){ const el=document.getElementById('q'+idx);
+  if(el) el.value=Math.max(0, (Number(el.value)||0)+d); }
+
 // ---------- photo: ถ่าย → ดึงพิกัด → ย่อ 1280 + ปั๊กเวลา/พิกัด → preview ----------
 function loadImg(file){ return new Promise((res,rej)=>{
   const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); }); }
