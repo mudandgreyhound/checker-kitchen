@@ -336,6 +336,8 @@ async function doReceive(){
   if (!photoDataUrl && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
   $("btnReceive").disabled = true;
   try{
+    const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
+    if (fresh) gps = fresh;
     const payload = {
       shop_code: curShop.shop_code,
       lat: gps ? gps.lat : null,
