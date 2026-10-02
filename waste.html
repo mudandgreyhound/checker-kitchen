@@ -246,7 +246,7 @@ function getGps(){
     navigator.geolocation.getCurrentPosition(
       pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
       () => resolve(null),
-      { enableHighAccuracy:true, timeout:6000, maximumAge:60000 }
+      { enableHighAccuracy:true, timeout:8000, maximumAge:10000 }
     );
   });
 }
@@ -256,11 +256,16 @@ async function loadShops(){
   show("screenShops");
   $("shopList").innerHTML = "";
   $("shopState").textContent = "กำลังโหลดรายการร้าน…";
+  await fetchAndRenderShops();                 // แสดงทันทีด้วยพิกัดที่มีอยู่ (หรือ /shops)
+  const g = await getGps();                    // รีเฟรชพิกัดสดเบื้องหลัง
+  if (g){ gps = g; fetchAndRenderShops(); }    // ได้พิกัดใหม่แล้ว re-sort ตามระยะ
+}
+async function fetchAndRenderShops(){
   try{
     let rows;
     if (gps) {
       rows = await api(`/api/waste-return/nearby?lat=${gps.lat}&lng=${gps.lng}`);
-      if (!rows.length) rows = await api("/api/waste-return/shops"); // fallback ถ้ายังไม่มีพิกัด
+      if (!rows.length) rows = await api("/api/waste-return/shops"); // fallback ถ้ายังไม่มีพิกัดร้าน
     } else {
       rows = await api("/api/waste-return/shops");
     }
@@ -420,8 +425,7 @@ async function boot(){
   try{ const u = JSON.parse(localStorage.getItem("ks_user") || "{}");
        $("whoami").textContent = u.full_name || u.username || "admin"; }catch(e){}
   $("btnLogout").classList.remove("hidden");
-  gps = await getGps();
-  loadShops();
+  loadShops();   // loadShops ดึง GPS สดเองแล้ว
 }
 boot();
 </script>
