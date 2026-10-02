@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>รายงานรับ Waste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --orange:#F26322; --orange-dark:#D9521A; --green:#1E8E3E;
+    --red:#c62828; --ink:#20242b; --muted:#8a8f98; --line:#ececec;
+    --pink:#fdeae4; --bg:#f4f5f7; --card:#fff;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans Thai",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1000px;margin:0 auto;padding:14px 14px 48px;}
+  .hidden{display:none!important;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .dot{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb089,#F26322 70%);display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .brand .t1{font-weight:800;color:var(--orange);font-size:18px;line-height:1;}
+  .brand .t2{font-size:12px;color:var(--muted);margin-top:3px;}
+  .logout{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-size:13px;color:#444;font-family:inherit;cursor:pointer;}
+
+  /* login */
+  .login-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:30px auto;max-width:360px;}
+  .login-card h2{margin:0 0 16px;color:var(--orange);font-size:20px;text-align:center;}
+  .fld{margin-bottom:12px;}
+  .fld label{display:block;font-size:13px;color:#555;margin-bottom:5px;font-weight:600;}
+  .fld input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;}
+
+  .controls{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .controls input[type=date]{padding:10px;border:1px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;}
+  .btn{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .btn:active{background:var(--orange-dark);}
+  .btn.ghost{background:#fff;color:#333;border:1px solid var(--line);}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
+  .kpi{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .kpi .lbl{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .kpi .val{font-size:26px;font-weight:800;color:var(--orange);}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:3px;}
+  .kpi.diff .val.neg{color:var(--red);} .kpi.diff .val.pos{color:var(--green);}
+
+  h3{margin:18px 0 8px;font-size:15px;}
+  .tablewrap{background:var(--card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px;}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{background:#faf7f5;color:#555;font-weight:700;font-size:12px;position:sticky;top:0;}
+  td.num,th.num{text-align:right;}
+  tr.rrow{cursor:pointer;} tr.rrow:hover{background:#fafafa;}
+  .diffpos{color:var(--green);font-weight:700;} .diffneg{color:var(--red);font-weight:700;}
+  .far{color:var(--red);font-weight:700;}
+  .pill{display:inline-block;font-size:11px;font-weight:600;border-radius:6px;padding:1px 7px;}
+  .pill.m{background:#efe8ff;color:#6b3fd1;} .pill.d{background:var(--pink);color:var(--orange-dark);}
+  .subrow td{background:#fbfbfb;padding:0;border-bottom:1px solid var(--line);}
+  .subtable{width:100%;border-collapse:collapse;}
+  .subtable td{padding:7px 12px;font-size:12px;border-bottom:1px dashed #eee;white-space:nowrap;}
+  .linkbtn{background:none;border:none;color:var(--orange);font-family:inherit;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;}
+  .state{text-align:center;color:var(--muted);padding:24px;font-size:14px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:99;opacity:0;transition:opacity .2s;}
+  .toast.show{opacity:.95;} .toast.err{background:#b3261e;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="dot">🍩</div>
+      <div><div class="t1">รายงานรับ Waste</div><div class="t2" id="whoami">—</div></div>
+    </div>
+    <button class="logout hidden" id="btnLogout">log out</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="screenLogin" class="hidden">
+    <div class="login-card">
+      <h2>🍩 เข้าสู่ระบบ</h2>
+      <div class="fld"><label>Username</label><input id="inUser" autocomplete="username"></div>
+      <div class="fld"><label>Password</label><input id="inPass" type="password" autocomplete="current-password"></div>
+      <button class="btn" id="btnLogin" style="width:100%">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+
+  <!-- REPORT -->
+  <div id="screenReport" class="hidden">
+    <div class="controls">
+      <input type="date" id="dPick">
+      <button class="btn" id="btnGo">ดูรายงาน</button>
+      <button class="btn ghost" id="btnXlsx">⬇ Excel</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <h3>รับแล้ว <span class="muted" id="cRecv"></span></h3>
+    <div class="tablewrap">
+      <table id="tRecv">
+        <thead><tr>
+          <th>ร้าน</th><th>คนขับ</th>
+          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">รวมรับ</th>
+          <th class="num">คาด</th><th class="num">diff</th><th>ระยะ GPS</th><th>รูป</th>
+        </tr></thead>
+        <tbody id="bRecv"><tr><td colspan="9" class="state">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3>ค้างรับ <span class="muted" id="cPend"></span></h3>
+    <div class="tablewrap">
+      <table id="tPend">
+        <thead><tr><th>ร้าน</th><th class="num">ค้าง (ชิ้น)</th><th class="num">รายการ</th></tr></thead>
+        <tbody id="bPend"><tr><td colspan="3" class="state">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const API_BASE = "https://kitchen_checker.mobile1234.site";
+const TOKEN_KEY = "ks_token";
+let token = localStorage.getItem(TOKEN_KEY) || "";
+let lastData = null;
+
+const $ = id => document.getElementById(id);
+function show(s){ ["screenLogin","screenReport"].forEach(x=>$(x).classList.add("hidden")); $(s).classList.remove("hidden"); }
+function toast(m,err){ const t=$("toast"); t.textContent=m; t.className="toast show"+(err?" err":""); setTimeout(()=>t.className="toast",2400); }
+const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({ "Content-Type":"application/json" }, opts.headers||{},
+                               token ? { Authorization:"Bearer "+token } : {});
+  const res = await fetch(API_BASE + path, opts);
+  if (res.status === 401){ doLogout(); throw new Error("หมดเวลา เข้าสู่ระบบใหม่"); }
+  if (opts.raw) return res;
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.detail || ("error "+res.status));
+  return data;
+}
+
+// ---- auth ----
+async function doLogin(){
+  const u=$("inUser").value.trim(), p=$("inPass").value;
+  if(!u||!p) return toast("กรอก username / password", true);
+  $("btnLogin").disabled=true;
+  try{
+    const r = await api("/api/login",{method:"POST",body:JSON.stringify({username:u,password:p})});
+    token=r.token; localStorage.setItem(TOKEN_KEY,token);
+    localStorage.setItem("ks_user", JSON.stringify(r.user||{}));
+    boot();
+  }catch(e){ toast(e.message,true); } finally{ $("btnLogin").disabled=false; }
+}
+function doLogout(){ token=""; localStorage.removeItem(TOKEN_KEY); $("btnLogout").classList.add("hidden"); $("whoami").textContent="—"; show("screenLogin"); }
+
+// ---- load report ----
+async function load(){
+  const d = $("dPick").value;
+  $("bRecv").innerHTML = '<tr><td colspan="9" class="state">กำลังโหลด…</td></tr>';
+  $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
+  try{
+    const data = await api("/api/waste-return/report" + (d?`?day=${d}`:""));
+    lastData = data;
+    renderKpis(data.totals);
+    renderReceived(data.received);
+    renderPending(data.pending);
+  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="9" class="state">${esc(e.message)}</td></tr>`; }
+}
+function renderKpis(t){
+  const diffCls = t.diff<0?"neg":(t.diff>0?"pos":"");
+  const diffTxt = (t.diff>0?"+":"")+t.diff;
+  $("kpis").innerHTML = `
+    <div class="kpi"><div class="lbl">ร้านที่รับแล้ว</div><div class="val">${t.shops_received}</div><div class="sub">ค้าง ${t.shops_pending} ร้าน</div></div>
+    <div class="kpi"><div class="lbl">รวมรับจริง</div><div class="val">${t.total_recv}</div><div class="sub">โดนัท ${t.donut_recv} · มันช์กิ้น ${t.munch_recv}</div></div>
+    <div class="kpi"><div class="lbl">ยอดคาด (คีย์ไว้)</div><div class="val">${t.expected_total}</div></div>
+    <div class="kpi diff"><div class="lbl">ส่วนต่าง (รับ − คาด)</div><div class="val ${diffCls}">${diffTxt}</div></div>
+    <div class="kpi"><div class="lbl">ยอดค้างรับ</div><div class="val">${t.pending_qty}</div><div class="sub">${t.shops_pending} ร้าน</div></div>`;
+}
+function renderReceived(rows){
+  $("cRecv").textContent = `(${rows.length})`;
+  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="9" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
+  const b=$("bRecv"); b.innerHTML="";
+  rows.forEach(r=>{
+    const diffCls = r.diff<0?"diffneg":(r.diff>0?"diffpos":"");
+    const diffTxt = r.diff===0?"0":((r.diff>0?"+":"")+r.diff);
+    const dist = r.dist_m==null ? "—" : `<span class="${r.far?"far":""}">${r.far?"⚠ ":""}${r.dist_m>=1000?(r.dist_m/1000).toFixed(1)+" กม.":r.dist_m+" ม."}</span>`;
+    const ph = r.has_photo ? `<button class="linkbtn" onclick="viewPhoto(${r.return_id})">📷 ดู</button>` : "—";
+    const tr=document.createElement("tr");
+    tr.className="rrow"; tr.dataset.id=r.return_id;
+    tr.innerHTML = `<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
+      <td>${esc(r.driver||"—")}</td>
+      <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${r.total_recv}</td>
+      <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
+      <td>${dist}</td><td>${ph}</td>`;
+    tr.onclick = ev => { if(ev.target.closest(".linkbtn")) return; toggleDetail(tr, r.return_id); };
+    b.appendChild(tr);
+  });
+}
+async function toggleDetail(tr, rid){
+  const nx = tr.nextElementSibling;
+  if(nx && nx.classList.contains("subrow")){ nx.remove(); return; }
+  const sub=document.createElement("tr"); sub.className="subrow";
+  sub.innerHTML='<td colspan="9" class="state">กำลังโหลดราย SKU…</td>';
+  tr.after(sub);
+  try{
+    const items = await api(`/api/waste-return/report/detail?return_id=${rid}`);
+    const rowsHtml = items.map(it=>{
+      const tag = it.is_munch?'<span class="pill m">มันช์กิ้น</span>':'<span class="pill d">โดนัท</span>';
+      return `<tr><td>${esc(it.item_name||it.item_code)} ${tag}</td><td class="muted">${esc(it.item_code)}</td>
+              <td class="num">คาด ${it.expected_qty}</td><td class="num">รับ ${it.recv_qty}</td></tr>`;
+    }).join("");
+    sub.innerHTML = `<td colspan="9"><table class="subtable">${rowsHtml}</table></td>`;
+  }catch(e){ sub.innerHTML=`<td colspan="9" class="state">${esc(e.message)}</td>`; }
+}
+function renderPending(rows){
+  $("cPend").textContent = `(${rows.length})`;
+  if(!rows.length){ $("bPend").innerHTML='<tr><td colspan="3" class="state">รับครบแล้ว 🎉</td></tr>'; return; }
+  const b=$("bPend"); b.innerHTML="";
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
+      <td class="num">${r.pending_qty}</td><td class="num">${r.line_count||0}</td>`;
+    b.appendChild(tr);
+  });
+}
+
+// ---- photo (ต้องแนบ token → fetch เป็น blob แล้วเปิด) ----
+async function viewPhoto(rid){
+  try{
+    const res = await api(`/api/waste-return/photo?return_id=${rid}`, {raw:true});
+    if(!res.ok) throw new Error("ไม่มีรูป");
+    const url = URL.createObjectURL(await res.blob());
+    window.open(url, "_blank");
+  }catch(e){ toast(e.message,true); }
+}
+
+// ---- export Excel ----
+function exportXlsx(){
+  if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
+  const d = $("dPick").value || lastData.date;
+  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รวมรับ","คาด","diff","ระยะ(ม.)","ไกลเกิน","มีรูป"]];
+  lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
+    r.donut_recv, r.munch_recv, r.total_recv, r.expected_total, r.diff,
+    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", r.has_photo?"มี":""]));
+  const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
+  lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(recv), "รับแล้ว");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pend), "ค้างรับ");
+  XLSX.writeFile(wb, `waste_report_${d}.xlsx`);
+}
+
+// ---- wire ----
+$("btnLogin").onclick = doLogin;
+$("inPass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
+$("btnLogout").onclick = doLogout;
+$("btnGo").onclick = load;
+$("btnXlsx").onclick = exportXlsx;
+
+function boot(){
+  if(!token){ show("screenLogin"); return; }
+  try{ const u=JSON.parse(localStorage.getItem("ks_user")||"{}"); $("whoami").textContent=u.full_name||u.username||"admin"; }catch(e){}
+  $("btnLogout").classList.remove("hidden");
+  const t=new Date(); $("dPick").value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  show("screenReport");
+  load();
+}
+boot();
+</script>
+</body>
+</html>
