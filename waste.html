@@ -204,7 +204,7 @@ function toast(msg, err){
   t.className = "toast show" + (err ? " err" : "");
   setTimeout(() => t.className = "toast", 2200);
 }
-function isMunch(code){ return !!code && code.indexOf("DPF23") === 0; }
+function isMunch(code){ return !!code && String(code).trim().toUpperCase().startsWith("DPF23"); }
 
 async function api(path, opts){
   opts = opts || {};
@@ -302,7 +302,9 @@ async function openReceive(shop){
     items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
     vals = { donut: 0, munch: 0 };
     items.forEach(it => {
-      if (it.is_munch) vals.munch += (it.expected_qty||0);
+      // ใช้ is_munch จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code (เผื่อ backend ยังไม่ deploy/restart)
+      it._munch = (it.is_munch === true || it.is_munch === false) ? it.is_munch : isMunch(it.item_code);
+      if (it._munch) vals.munch += (it.expected_qty||0);
       else vals.donut += (it.expected_qty||0);
     });
     renderDetail();
@@ -319,7 +321,7 @@ function renderDetail(){
   const body = $("discBody");
   body.innerHTML = "";
   items.forEach(it => {
-    const tag = it.is_munch ? '<span class="tag m">มันช์กิ้น</span>' : '<span class="tag d">โดนัท</span>';
+    const tag = (it._munch ?? isMunch(it.item_code)) ? '<span class="tag m">มันช์กิ้น</span>' : '<span class="tag d">โดนัท</span>';
     const el = document.createElement("div");
     el.className = "row";
     el.innerHTML = `<div><div class="rn">${it.item_name || it.item_code}${tag}</div>
