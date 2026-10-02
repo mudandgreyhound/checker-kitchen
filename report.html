@@ -38,7 +38,10 @@
   .fld input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;}
 
   .controls{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
-  .controls input[type=date]{padding:10px;border:1px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;}
+  .datewrap{position:relative;display:inline-block;}
+  .datewrap #dShow{padding:10px 34px 10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;width:160px;background:#fff;cursor:pointer;color:var(--ink);}
+  .datewrap .cal{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:15px;}
+  .datewrap #dPick{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}
   .btn{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
   .btn:active{background:var(--orange-dark);}
   .btn.ghost{background:#fff;color:#333;border:1px solid var(--line);}
@@ -95,7 +98,11 @@
   <!-- REPORT -->
   <div id="screenReport" class="hidden">
     <div class="controls">
-      <input type="date" id="dPick">
+      <div class="datewrap" id="dateBox">
+        <input type="text" id="dShow" readonly placeholder="วว/ดด/ปปปป">
+        <span class="cal">📅</span>
+        <input type="date" id="dPick">
+      </div>
       <button class="btn" id="btnGo">ดูรายงาน</button>
       <button class="btn ghost" id="btnXlsx">⬇ Excel</button>
     </div>
@@ -262,17 +269,23 @@ function exportXlsx(){
 }
 
 // ---- wire ----
+function fmtTH(iso){ if(!iso) return ""; const p=iso.split("-"); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:iso; }
+function syncShow(){ $("dShow").value = fmtTH($("dPick").value); }
+
 $("btnLogin").onclick = doLogin;
 $("inPass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
 $("btnLogout").onclick = doLogout;
 $("btnGo").onclick = load;
 $("btnXlsx").onclick = exportXlsx;
+$("dateBox").onclick = () => { try{ $("dPick").showPicker(); }catch(e){ $("dPick").focus(); } };
+$("dPick").onchange = () => { syncShow(); load(); };
 
 function boot(){
   if(!token){ show("screenLogin"); return; }
   try{ const u=JSON.parse(localStorage.getItem("ks_user")||"{}"); $("whoami").textContent=u.full_name||u.username||"admin"; }catch(e){}
   $("btnLogout").classList.remove("hidden");
   const t=new Date(); $("dPick").value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  syncShow();
   show("screenReport");
   load();
 }
