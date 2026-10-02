@@ -1,324 +1,429 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>รับ Waste · Dunkin</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Prompt:wght@500;600;700&display=swap" rel="stylesheet">
+<title>รับ Waste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{ --brand:#FF671F; --green:#16a34a; --bg:#faf7f3; --line:#f0ece6;
-         --ink:#1f2937; --muted:#9aa3af; }
+  :root{
+    color-scheme: light;
+    --orange:#F26322; --orange-dark:#D9521A;
+    --green:#1E8E3E; --green-dark:#187532;
+    --ink:#20242b; --muted:#8a8f98; --line:#ececec;
+    --pink:#fdeae4; --bg:#f4f5f7; --card:#fff;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
   *{box-sizing:border-box}
-  body{margin:0;font-family:'Prompt','Nunito',sans-serif;background:var(--bg);
-       color:var(--ink);-webkit-tap-highlight-color:transparent;padding-bottom:74px}
-  .num{font-family:'Nunito',sans-serif}
-  header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-  .hbar{max-width:768px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px}
-  .brand{font-weight:800;font-size:18px;color:var(--brand)}
-  .ulabel{font-size:12px;color:var(--muted)}
-  .lo{margin-left:auto;background:#f1f5f9;color:#475569;border:0;border-radius:10px;
-      padding:7px 12px;font-weight:700;font-size:13px}
-  .wrap{max-width:768px;margin:0 auto;padding:12px 14px}
-  .card{background:#fff;border:1px solid var(--line);border-radius:16px;
-        box-shadow:0 1px 3px rgba(0,0,0,.05);padding:12px 14px;margin-bottom:10px}
-  .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
-  .muted{color:var(--muted);font-size:13px}
-  .big{font-size:24px;font-weight:800;color:var(--brand)}
-  input{font-family:inherit;font-size:16px}
-  input[type=text],input[type=number],input[type=password]{width:100%;padding:11px 12px;
-        border:1px solid #e5e0d8;border-radius:12px;background:#fff}
-  input[type=number]{width:88px;text-align:center;font-family:'Nunito',sans-serif;font-weight:700}
-  .btn{border:0;border-radius:14px;padding:14px 16px;font-weight:800;font-size:16px;width:100%;color:#fff}
-  .btn.green{background:var(--green)} .btn.orange{background:var(--brand)}
-  .btn.sec{background:#f1f5f9;color:#334155}
-  .shop{cursor:pointer} .shop:active{background:#fff8f3}
-  .badge{background:#FFF0E6;color:#c2410c;border:1px solid #ffd9bd;border-radius:20px;
-         padding:3px 11px;font-size:13px;font-weight:800}
-  .near{border-color:var(--green);background:#f0fdf4}
-  nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);
-      display:flex;padding-bottom:env(safe-area-inset-bottom,0)}
-  nav button{flex:1;background:none;border:0;padding:12px 0;color:var(--muted);font-size:12px;font-weight:700}
-  nav button.on{color:var(--brand)}
-  .hide{display:none}
-  .item{border-bottom:1px solid var(--line);padding:10px 0}
-  .item:last-child{border:0}
-  .qrow{display:flex;align-items:center;gap:6px;flex-shrink:0}
-  .qbtn{border:0;border-radius:10px;font-weight:800;height:44px;min-width:44px;
-        font-size:20px;line-height:1;cursor:pointer}
-  .qbtn:active{opacity:.8}
-  .qfull{background:#FFF0E6;color:#c2410c;border:1px solid #ffd9bd;min-width:auto;padding:0 12px;font-size:14px}
-  .qminus{background:#fdecec;color:#c0392b}
-  .qplus{background:var(--brand);color:#fff}
-  .qnum{width:60px;height:44px;text-align:center;font-weight:800;
-        border:1px solid #e5e0d8;border-radius:10px}
-  #login{max-width:380px;margin:44px auto;padding:0 18px}
-  #login input{margin-bottom:11px}
+  html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+  body{margin:0;font-family:"Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+       background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:460px;margin:0 auto;padding:14px 14px 48px;}
+  .hidden{display:none!important;}
+
+  /* top bar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .dot{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb089,#F26322 70%);display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .brand .t1{font-weight:800;color:var(--orange);font-size:18px;line-height:1;}
+  .brand .t2{font-size:12px;color:var(--muted);margin-top:3px;}
+  .logout{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-size:13px;color:#444;font-family:inherit;cursor:pointer;}
+
+  .backlink{text-align:center;color:#3a3f47;font-size:15px;padding:12px;background:#fff;border-radius:12px;margin-bottom:12px;font-weight:500;cursor:pointer;}
+
+  /* login */
+  .login-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:30px;}
+  .login-card h2{margin:0 0 16px;color:var(--orange);font-size:20px;text-align:center;}
+  .fld{margin-bottom:12px;}
+  .fld label{display:block;font-size:13px;color:#555;margin-bottom:5px;font-weight:600;}
+  .fld input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;}
+  .fld input:focus{outline:none;border-color:var(--orange);}
+
+  /* shop list */
+  .shopitem{background:#fff;border-radius:12px;padding:15px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
+  .shopitem:active{background:#fafafa;}
+  .shopitem .sn{font-weight:700;font-size:15px;}
+  .shopitem .ss{font-size:12px;color:var(--muted);margin-top:3px;}
+  .badge{background:var(--pink);color:var(--orange-dark);font-weight:800;border-radius:999px;padding:6px 13px;font-size:15px;white-space:nowrap;}
+  .near{display:inline-block;font-size:11px;font-weight:600;color:#1E8E3E;background:#e7f4ea;border-radius:6px;padding:1px 7px;margin-left:6px;}
+
+  /* receive: shop + BIG total */
+  .shopcard{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .shopcard .name{font-weight:700;font-size:15px;margin-bottom:12px;}
+  .totalbox{display:flex;align-items:baseline;justify-content:center;gap:10px;background:var(--pink);border-radius:14px;padding:14px;}
+  .totalbox .num{font-size:52px;font-weight:800;color:var(--orange);line-height:1;}
+  .totalbox .unit{font-size:18px;font-weight:600;color:var(--orange-dark);}
+
+  .photo{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 6px rgba(242,99,34,.3);}
+  .photo:active{background:var(--orange-dark);}
+  .photo.has{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
+  #photoPreview{width:100%;border-radius:12px;margin-bottom:12px;display:none;}
+
+  .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
+  .counter .ctrl{display:flex;align-items:center;gap:10px;}
+  .btn-step{width:52px;height:52px;border-radius:12px;border:none;font-size:28px;font-weight:700;font-family:inherit;color:#fff;background:var(--orange);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .btn-step.minus{background:#fff;color:var(--orange);border:2px solid var(--orange);}
+  .btn-step:active{transform:scale(.94);}
+  .counter .cval{font-size:38px;font-weight:800;min-width:70px;text-align:center;}
+  .counter .cunit{font-size:16px;font-weight:600;color:#555;min-width:28px;}
+
+  .receive{width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:18px;font-size:19px;font-weight:800;font-family:inherit;margin:6px 0 18px;cursor:pointer;box-shadow:0 2px 8px rgba(30,142,62,.3);}
+  .receive:active{background:var(--green-dark);}
+  .receive:disabled{opacity:.6;}
+
+  /* collapsible list */
+  .disclosure{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;}
+  .disc-head{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;font-family:inherit;padding:16px;cursor:pointer;color:#3a3f47;}
+  .disc-head .dh-left{font-size:15px;font-weight:600;}
+  .disc-head .count-chip{font-size:12px;color:var(--muted);margin-left:6px;}
+  .chev{transition:transform .22s;font-size:14px;color:var(--muted);}
+  .disclosure.open .chev{transform:rotate(180deg);}
+  .disc-body{display:none;border-top:1px solid var(--line);}
+  .disclosure.open .disc-body{display:block;}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row .rn{font-weight:700;font-size:14px;}
+  .row .tag{display:inline-block;font-size:11px;font-weight:600;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:middle;}
+  .tag.d{background:#F26322;} .tag.m{background:#8a5cf6;}
+  .row .rsub{font-size:12px;color:var(--muted);margin-top:3px;}
+  .row .rqty{font-size:22px;font-weight:800;min-width:44px;text-align:right;}
+
+  /* generic */
+  .btn{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .btn:active{background:var(--orange-dark);}
+  .state{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:99;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;}
+  .toast.show{opacity:.95;}
+  .toast.err{background:#b3261e;}
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<!-- ===== LOGIN ===== -->
-<section id="login" class="hide">
-  <div style="text-align:center;margin-bottom:16px">
-    <div style="font-size:34px">🍩</div>
-    <div class="brand" style="font-size:22px">รับ Waste กลับ</div>
-    <div class="muted">Dunkin · Kitchen</div>
+  <div class="topbar">
+    <div class="brand">
+      <div class="dot">🍩</div>
+      <div>
+        <div class="t1">รับ Waste</div>
+        <div class="t2" id="whoami">—</div>
+      </div>
+    </div>
+    <button class="logout hidden" id="btnLogout">log out</button>
   </div>
-  <input type="text" id="lgUser" placeholder="username">
-  <input type="password" id="lgPass" placeholder="password" onkeydown="if(event.key==='Enter')doLogin()">
-  <button class="btn orange" onclick="doLogin()">เข้าสู่ระบบ</button>
-  <div class="muted" id="lgErr" style="color:#c0392b;margin-top:10px"></div>
-</section>
 
-<!-- ===== APP ===== -->
-<div id="app" class="hide">
-<header><div class="hbar">
-  <span style="font-size:22px">🍩</span>
-  <div style="min-width:0">
-    <div class="brand">รับ Waste</div>
-    <div class="ulabel" id="userLabel"></div>
-  </div>
-  <button class="lo" onclick="logout()">log out</button>
-</div></header>
-
-<section id="pgShops" class="wrap">
-  <button class="btn sec" style="margin-bottom:10px" onclick="useLocation()">📍 หาร้านใกล้ฉัน</button>
-  <input type="text" id="q" placeholder="ค้นหารหัส/ชื่อสาขา…" oninput="renderShops()" style="margin-bottom:10px">
-  <div id="shopList"></div>
-</section>
-
-<section id="pgRecv" class="wrap hide">
-  <button class="btn sec" style="margin-bottom:10px" onclick="show('shops')">← เลือกร้านอื่น</button>
-  <div class="card"><div class="row"><b id="recvShop"></b><span class="badge num" id="recvPend"></span></div></div>
-  <div class="card">
-    <input type="file" id="photoInput" accept="image/*" capture="environment" class="hide">
-    <button class="btn orange" onclick="photoInput.click()">📷 ถ่ายรูปโดนัทที่รับ</button>
-    <div id="photoWrap" class="hide" style="margin-top:10px">
-      <img id="photoPreview" style="width:100%;border-radius:12px;display:block">
-      <div class="muted num" id="photoMeta" style="margin-top:6px"></div>
+  <!-- ===== LOGIN ===== -->
+  <div id="screenLogin" class="hidden">
+    <div class="login-card">
+      <h2>🍩 เข้าสู่ระบบ</h2>
+      <div class="fld"><label>Username</label><input id="inUser" autocomplete="username"></div>
+      <div class="fld"><label>Password</label><input id="inPass" type="password" autocomplete="current-password"></div>
+      <button class="btn" id="btnLogin">เข้าสู่ระบบ</button>
     </div>
   </div>
-  <div class="card" id="recvItems"></div>
-  <button class="btn green" onclick="submitReceive()">✓ รับของ</button>
-</section>
 
-<section id="pgSum" class="wrap hide">
-  <div class="card">
-    <div class="muted">รับกลับวันนี้ (รวมทุกร้าน)</div>
-    <div class="big num" id="sumTotal">–</div>
-    <div class="muted num" id="sumMeta"></div>
+  <!-- ===== SHOP LIST ===== -->
+  <div id="screenShops" class="hidden">
+    <div class="state" id="shopState">กำลังโหลดรายการร้าน…</div>
+    <div id="shopList"></div>
   </div>
-  <div class="card" id="sumSku"></div>
-</section>
 
-<nav>
-  <button id="nShops" class="on" onclick="show('shops')">🏪 ร้าน</button>
-  <button id="nSum" onclick="show('sum')">📊 สรุป</button>
-</nav>
+  <!-- ===== RECEIVE ===== -->
+  <div id="screenReceive" class="hidden">
+    <div class="backlink" id="btnBack">← เลือกร้านอื่น</div>
+
+    <div class="shopcard">
+      <div class="name" id="rcName">—</div>
+      <div class="totalbox"><span class="num" id="grandTotal">0</span><span class="unit">ชิ้น</span></div>
+    </div>
+
+    <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
+    <input id="photoInput" type="file" accept="image/*" capture="environment" class="hidden">
+    <img id="photoPreview" alt="รูปที่รับ">
+
+    <div class="counter">
+      <div class="clabel">โดนัท</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="donut" data-d="-1">−</button>
+        <div class="cval" id="donutVal">0</div>
+        <button class="btn-step" data-k="donut" data-d="1">+</button>
+      </div>
+      <div class="cunit">ชิ้น</div>
+    </div>
+
+    <div class="counter">
+      <div class="clabel">มันช์กิ้น</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="munch" data-d="-1">−</button>
+        <div class="cval" id="munchVal">0</div>
+        <button class="btn-step" data-k="munch" data-d="1">+</button>
+      </div>
+      <div class="cunit">ชิ้น</div>
+    </div>
+
+    <button class="receive" id="btnReceive">✓ รับของ</button>
+
+    <div class="disclosure" id="disc">
+      <button class="disc-head" id="discHead">
+        <span class="dh-left">ดูรายการโดนัททั้งหมด<span class="count-chip" id="discCount"></span></span>
+        <span class="chev">▼</span>
+      </button>
+      <div class="disc-body" id="discBody"></div>
+    </div>
+  </div>
+
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-// ===== ใช้ config เดียวกับ checker เพื่อ login ร่วม =====
-const API_BASE = 'https://kitchen_checker.mobile1234.site';
-const API = API_BASE || location.origin;
-const TOKEN_KEY = 'ks_token';                 // ← คีย์เดียวกับ checker (login ร่วม)
-const WR = '/api/waste-return';
-let allShops = [], cur = null, curItems = [], curUser = {};
-let recvShopName = '', photoData = null, photoCoord = null;
+"use strict";
+const API_BASE = "https://kitchen_checker.mobile1234.site";
+const TOKEN_KEY = "ks_token";
 
-const getTok = ()=>{ try{return localStorage.getItem(TOKEN_KEY)}catch{return null} };
-const setTok = t=>{ try{ t?localStorage.setItem(TOKEN_KEY,t):localStorage.removeItem(TOKEN_KEY) }catch{} };
-const authH  = ()=>{ const t=getTok(); return t?{'Authorization':'Bearer '+t}:{} };
+// ---- state ----
+let token = localStorage.getItem(TOKEN_KEY) || "";
+let gps = null;                 // {lat,lng}
+let curShop = null;             // {shop_code, shop_name}
+let items = [];                 // ราย SKU ของร้านปัจจุบัน
+let vals = { donut: 0, munch: 0 };
+let photoDataUrl = null;
 
-async function api(path, opts={}){
-  const r = await fetch(API+path, {...opts,
-    headers:{'Content-Type':'application/json', ...authH(), ...(opts.headers||{})}});
-  if(r.status===401){ setTok(null); showLogin(); throw new Error('ต้อง login'); }
-  const j = await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(j.detail||('HTTP '+r.status));
-  return j;
+// ---- helpers ----
+const $ = id => document.getElementById(id);
+function show(screen){
+  ["screenLogin","screenShops","screenReceive"].forEach(s => $(s).classList.add("hidden"));
+  $(screen).classList.remove("hidden");
+}
+function toast(msg, err){
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (err ? " err" : "");
+  setTimeout(() => t.className = "toast", 2200);
+}
+function isMunch(code){ return !!code && code.indexOf("DPF23") === 0; }
+
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({ "Content-Type": "application/json" },
+                               opts.headers || {},
+                               token ? { Authorization: "Bearer " + token } : {});
+  const res = await fetch(API_BASE + path, opts);
+  if (res.status === 401){ doLogout(); throw new Error("หมดเวลา เข้าสู่ระบบใหม่"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || ("error " + res.status));
+  return data;
 }
 
-// ---------- auth ----------
+// ---- auth ----
 async function doLogin(){
-  lgErr.textContent = "";
+  const u = $("inUser").value.trim(), p = $("inPass").value;
+  if (!u || !p) return toast("กรอก username / password", true);
+  $("btnLogin").disabled = true;
   try{
-    const d = await api('/api/login', {method:'POST',
-      body:JSON.stringify({username:lgUser.value.trim(), password:lgPass.value})});
-    setTok(d.token); curUser = d.user||{}; showApp();
-  }catch(e){ lgErr.textContent = e.message; }
+    const r = await api("/api/login", { method:"POST", body: JSON.stringify({ username:u, password:p }) });
+    token = r.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem("ks_user", JSON.stringify(r.user || {}));
+    boot();
+  }catch(e){ toast(e.message, true); }
+  finally{ $("btnLogin").disabled = false; }
 }
-function logout(){ setTok(null); showLogin(); }
-function showLogin(){ app.classList.add('hide'); login.classList.remove('hide'); }
-function showApp(){
-  login.classList.add('hide'); app.classList.remove('hide');
-  userLabel.textContent = [curUser.full_name||curUser.username, curUser.kitchen_name]
-                          .filter(Boolean).join(' · ');
-  show('shops');
-}
-
-// ---------- navigation ----------
-function show(pg){
-  pgShops.classList.toggle('hide', pg!=='shops');
-  pgRecv .classList.toggle('hide', pg!=='recv');
-  pgSum  .classList.toggle('hide', pg!=='sum');
-  nShops.classList.toggle('on', pg==='shops');
-  nSum  .classList.toggle('on', pg==='sum');
-  if(pg==='shops') loadShops();
-  if(pg==='sum')   loadSummary();
+function doLogout(){
+  token = ""; localStorage.removeItem(TOKEN_KEY);
+  $("btnLogout").classList.add("hidden");
+  $("whoami").textContent = "—";
+  show("screenLogin");
 }
 
-// ---------- shops ----------
+// ---- gps (best-effort) ----
+function getGps(){
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy:true, timeout:6000, maximumAge:60000 }
+    );
+  });
+}
+
+// ---- shop list ----
 async function loadShops(){
-  try{ allShops = await api(WR+'/shops'); renderShops(); }
-  catch(e){ shopList.innerHTML = err(e); }
-}
-function renderShops(){
-  const kw = (q.value||"").trim().toLowerCase();
-  const list = allShops.filter(s =>
-    s.shop_code.toLowerCase().includes(kw) || (s.shop_name||"").toLowerCase().includes(kw));
-  shopList.innerHTML = list.length ? list.map(s => `
-    <div class="card shop ${s.within_radius?'near':''}" onclick="openShop('${s.shop_code}')">
-      <div class="row">
-        <div><b>${s.shop_name||s.shop_code}</b> <span class="muted num">${s.shop_code}</span>
-          ${s.distance_m!=null?`<span class="muted num"> · ${s.distance_m} ม.</span>`:''}</div>
-        <span class="badge num">${s.pending_qty} ชิ้น</span>
-      </div>
-      <div class="muted num">${s.line_count} รายการ · waste ${s.waste_date??''}</div>
-    </div>`).join('') : `<div class="muted">ไม่มีร้านค้างรับ</div>`;
-}
-function useLocation(){
-  if(!navigator.geolocation){ alert("อุปกรณ์ไม่รองรับ location"); return; }
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const {latitude:lat, longitude:lng} = pos.coords;
-    try{
-      allShops = await api(`${WR}/nearby?lat=${lat}&lng=${lng}`);
-      if(!allShops.length){ alert("ยังไม่มีร้านที่บันทึกพิกัด — เลือกร้านเองไปก่อน"); loadShops(); return; }
-      renderShops();
-    }catch(e){ shopList.innerHTML = err(e); }
-  }, e=>{
-    const msg = {1:"ไม่ได้อนุญาตให้เข้าถึงตำแหน่ง — เปิดสิทธิ์ใน ตั้งค่า iOS/Safari",
-                 2:"หาตำแหน่งไม่ได้ — ลองใกล้หน้าต่าง หรือเปิด WiFi",
-                 3:"หาตำแหน่งช้าเกินไป — ลองกดใหม่อีกครั้ง"}[e.code] || e.message;
-    alert("location (code "+e.code+"): "+msg+"\nเลือกร้านเองได้ตามปกติ");
-  }, {enableHighAccuracy:false, timeout:15000, maximumAge:60000});
-}
-
-// ---------- receive ----------
-async function openShop(code){
-  cur = code;
-  const s = allShops.find(x=>x.shop_code===code); recvShopName = (s&&s.shop_name)||'';
-  recvShop.textContent = (recvShopName?recvShopName+' · ':'')+code;
-  photoData=null; photoCoord=null; photoWrap.classList.add('hide'); photoInput.value='';
-  recvItems.innerHTML = "กำลังโหลด…"; show('recv');
+  show("screenShops");
+  $("shopList").innerHTML = "";
+  $("shopState").textContent = "กำลังโหลดรายการร้าน…";
   try{
-    curItems = await api(`${WR}/pending?shop_code=${encodeURIComponent(code)}`);
-    const tot = curItems.reduce((a,i)=>a+Number(i.expected_qty),0);
-    recvPend.textContent = tot+" ชิ้น";
-    recvItems.innerHTML = curItems.map((i,idx)=>{
-      const exp = Number(i.expected_qty);
-      const title = i.item_name || i.item_code;
-      return `
-      <div class="item"><div class="row">
-        <div style="flex:1;min-width:0">
-          <b>${title}</b> <span class="muted num">· คาด ${exp}</span>
-          <div class="muted num">${i.item_code} · waste ${i.waste_date}</div>
-        </div>
-        <div class="qrow">
-          <button class="qbtn qfull"  onclick="setQty(${idx},${exp})">ครบ</button>
-          <button class="qbtn qminus" onclick="stepQty(${idx},-1)">−</button>
-          <input class="qnum num" type="number" inputmode="numeric" id="q${idx}" value="${exp}" min="0">
-          <button class="qbtn qplus"  onclick="stepQty(${idx},1)">+</button>
-        </div>
-      </div></div>`;
-    }).join('') || `<div class="muted">ไม่มีของค้างรับ</div>`;
-  }catch(e){ recvItems.innerHTML = err(e); }
+    let rows;
+    if (gps) {
+      rows = await api(`/api/waste-return/nearby?lat=${gps.lat}&lng=${gps.lng}`);
+      if (!rows.length) rows = await api("/api/waste-return/shops"); // fallback ถ้ายังไม่มีพิกัด
+    } else {
+      rows = await api("/api/waste-return/shops");
+    }
+    renderShops(rows);
+  }catch(e){ $("shopState").textContent = "โหลดไม่สำเร็จ: " + e.message; }
 }
-// ปุ่มปรับจำนวน
-function setQty(idx, v){ const el=document.getElementById('q'+idx); if(el) el.value=Math.max(0,v); }
-function stepQty(idx, d){ const el=document.getElementById('q'+idx);
-  if(el) el.value=Math.max(0, (Number(el.value)||0)+d); }
-
-// ---------- photo: ถ่าย → ดึงพิกัด → ย่อ 1280 + ปั๊กเวลา/พิกัด → preview ----------
-function loadImg(file){ return new Promise((res,rej)=>{
-  const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); }); }
-function getCoordOnce(){ return new Promise(res=>{
-  if(!navigator.geolocation) return res(null);
-  navigator.geolocation.getCurrentPosition(p=>res(p.coords), ()=>res(null),
-    {enableHighAccuracy:true, timeout:8000}); }); }
-
-async function onPhoto(ev){
-  const file = ev.target.files && ev.target.files[0]; if(!file) return;
-  photoWrap.classList.remove('hide'); photoMeta.textContent = 'กำลังอ่านตำแหน่ง…';
-  photoCoord = await getCoordOnce();
-  const img = await loadImg(file);
-  const maxW = 1280; let w = img.naturalWidth, h = img.naturalHeight;
-  if(w > maxW){ h = Math.round(h*maxW/w); w = maxW; }
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const x = c.getContext('2d'); x.drawImage(img, 0, 0, w, h);
-  const lines = [
-    new Date().toLocaleString('th-TH'),
-    'สาขา '+cur+(recvShopName?(' · '+recvShopName):''),
-    photoCoord ? ('GPS '+photoCoord.latitude.toFixed(6)+', '+photoCoord.longitude.toFixed(6))
-               : 'GPS: ไม่มีสัญญาณ'
-  ];
-  const fs = Math.max(15, Math.round(w*0.028)), pad = Math.round(fs*0.5);
-  const barH = lines.length*(fs+pad)+pad;
-  x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, h-barH, w, barH);
-  x.fillStyle = '#fff'; x.font = 'bold '+fs+'px system-ui,sans-serif'; x.textBaseline = 'top';
-  lines.forEach((t,i)=>x.fillText(t, pad, h-barH+pad+i*(fs+pad)));
-  photoData = c.toDataURL('image/jpeg', 0.7);
-  photoPreview.src = photoData;
-  const kb = Math.round(photoData.length*0.75/1024);
-  photoMeta.textContent = 'พร้อมส่ง · ~'+kb+' KB'+(photoCoord?'':' · ไม่มีพิกัด');
+function renderShops(rows){
+  if (!rows.length){ $("shopState").textContent = "ไม่มีร้านที่ต้องรับวันนี้ 🎉"; return; }
+  $("shopState").textContent = `มี ${rows.length} ร้านที่ต้องรับ`;
+  const box = $("shopList");
+  rows.forEach(r => {
+    const name = r.shop_name || r.shop_code;
+    const dist = (r.distance_m != null)
+      ? `<span class="near">${r.within_radius ? "อยู่ที่ร้าน" : (r.distance_m >= 1000 ? (r.distance_m/1000).toFixed(1)+" กม." : r.distance_m+" ม.")}</span>`
+      : "";
+    const el = document.createElement("div");
+    el.className = "shopitem";
+    el.innerHTML = `<div><div class="sn">${name}${dist}</div><div class="ss">${r.shop_code} · ${r.line_count||0} รายการ</div></div>
+                    <div class="badge">${r.pending_qty} ชิ้น</div>`;
+    el.onclick = () => openReceive(r);
+    box.appendChild(el);
+  });
 }
-photoInput.onchange = onPhoto;
 
-function submitReceive(){
-  if(!curItems.length){ alert("ไม่มีรายการ"); return; }
-  if(!photoData){ alert("ถ่ายรูปโดนัทก่อนกดรับของ"); return; }
-  const items = curItems.map((i,idx)=>({
-    item_code:i.item_code, waste_date:i.waste_date, expected_qty:Number(i.expected_qty),
-    recv_qty:Number(document.getElementById('q'+idx).value||0)}));
-  const body = {shop_code:cur, driver:(curUser.full_name||curUser.username||null),
-                photo_b64:photoData, items};
-  if(photoCoord){ body.lat = photoCoord.latitude; body.lng = photoCoord.longitude; }
-  post(body);
-}
-async function post(body){
+// ---- receive ----
+async function openReceive(shop){
+  curShop = shop;
+  resetPhotoBtn();
+  $("photoInput").value = "";
+  $("rcName").textContent = (shop.shop_name || "") + " · " + shop.shop_code;
+  show("screenReceive");
+  $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
   try{
-    const j = await api(WR+'/receive', {method:'POST', body:JSON.stringify(body)});
-    alert(`รับแล้ว ${j.total_recv} ชิ้น`);
-    photoData=null; photoCoord=null; photoWrap.classList.add('hide'); photoInput.value='';
-    show('shops');
-  }catch(e){ alert("บันทึกไม่สำเร็จ: "+e.message); }
+    items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
+    vals = { donut: 0, munch: 0 };
+    items.forEach(it => {
+      if (it.is_munch) vals.munch += (it.expected_qty||0);
+      else vals.donut += (it.expected_qty||0);
+    });
+    renderDetail();
+    renderCounters();
+  }catch(e){ $("discBody").innerHTML = `<div class="state">โหลดไม่สำเร็จ: ${e.message}</div>`; }
+}
+function renderCounters(){
+  $("donutVal").textContent = vals.donut;
+  $("munchVal").textContent = vals.munch;
+  $("grandTotal").textContent = vals.donut + vals.munch;
+}
+function renderDetail(){
+  $("discCount").textContent = `${items.length} รายการ`;
+  const body = $("discBody");
+  body.innerHTML = "";
+  items.forEach(it => {
+    const tag = it.is_munch ? '<span class="tag m">มันช์กิ้น</span>' : '<span class="tag d">โดนัท</span>';
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML = `<div><div class="rn">${it.item_name || it.item_code}${tag}</div>
+                    <div class="rsub">${it.item_code} · waste ${it.waste_date}</div></div>
+                    <div class="rqty">${it.expected_qty}</div>`;
+    body.appendChild(el);
+  });
 }
 
-// ---------- summary ----------
-async function loadSummary(){
+async function doReceive(){
+  if (!items.length) return toast("ไม่มีรายการรับ", true);
+  if (!photoDataUrl && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
+  $("btnReceive").disabled = true;
   try{
-    const s = await api(WR+'/summary');
-    sumTotal.textContent = s.total_recv+" ชิ้น";
-    sumMeta.textContent  = `${s.date} · ${s.return_count} ใบ`;
-    sumSku.innerHTML = (s.by_sku||[]).map(x=>`
-      <div class="item row"><b>${x.item_code}</b><span class="num">${x.recv_qty}</span></div>`
-    ).join('') || `<div class="muted">ยังไม่มีการรับกลับวันนี้</div>`;
-  }catch(e){ sumSku.innerHTML = err(e); }
+    const payload = {
+      shop_code: curShop.shop_code,
+      lat: gps ? gps.lat : null,
+      lng: gps ? gps.lng : null,
+      photo_b64: photoDataUrl,
+      donut_recv: vals.donut,
+      munch_recv: vals.munch,
+      items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
+    };
+    const r = await api("/api/waste-return/receive", { method:"POST", body: JSON.stringify(payload) });
+    let msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
+    if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
+    toast(msg);
+    loadShops();
+  }catch(e){ toast(e.message, true); }
+  finally{ $("btnReceive").disabled = false; }
 }
 
-const err = e => `<div class="muted">โหลดไม่ได้: ${e.message||e}</div>`;
+// ---- photo: ย่อ + ปั๊ก location ลงรูป (กันพัง: ไม่หน่วงรอ GPS, มี error handler) ----
+function resetPhotoBtn(){
+  photoDataUrl = null;
+  $("photoPreview").style.display = "none";
+  $("btnPhoto").className = "photo";
+  $("btnPhoto").textContent = "📷 ถ่ายรูปโดนัทที่รับ";
+}
+function handlePhoto(file){
+  $("btnPhoto").textContent = "กำลังประมวลผลรูป…";
+  // ถ้ายังไม่มีพิกัด ลองดึงใหม่เบื้องหลัง (ไม่หน่วงการแสดงรูป) ไว้ใช้ตอนกดรับของ
+  if (!gps) getGps().then(g => { if (g) gps = g; });
 
-// ---------- boot: มี token อยู่แล้ว (จาก checker) → เข้าเลย ----------
-(async function(){
-  if(getTok()){
-    try{ const m = await api('/api/me');
-      curUser = {username:m.username, full_name:m.full_name, role:m.role,
-                 kitchen:m.kitchen, kitchen_name:m.kitchen_name};
-      showApp(); return;
-    }catch{}
-  }
-  showLogin();
-})();
+  const reader = new FileReader();
+  reader.onerror = () => { resetPhotoBtn(); toast("อ่านไฟล์รูปไม่สำเร็จ ลองใหม่", true); };
+  reader.onload = e => {
+    const img = new Image();
+    img.onerror = () => { resetPhotoBtn(); toast("เปิดรูปไม่สำเร็จ (ไฟล์อาจไม่รองรับ เช่น HEIC) ลองถ่ายใหม่", true); };
+    img.onload = () => {
+      try{
+        const MAX = 1280;
+        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        if (!w || !h){ resetPhotoBtn(); toast("รูปเสียหาย ลองใหม่", true); return; }
+        if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+        else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        // แถบข้อมูล 3 บรรทัดล่างรูป
+        const lines = [
+          new Date().toLocaleString("th-TH"),
+          "สาขา " + (curShop.shop_name ? (curShop.shop_name + " · ") : "") + curShop.shop_code,
+          gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
+        ];
+        const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
+        const barH = lines.length*(fs+p)+p;
+        ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
+        ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
+        lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
+        photoDataUrl = cv.toDataURL("image/jpeg", 0.7);
+        const pv = $("photoPreview");
+        pv.src = photoDataUrl; pv.style.display = "block";
+        const kb = Math.round(photoDataUrl.length*0.75/1024);
+        $("btnPhoto").className = "photo has";
+        $("btnPhoto").textContent = `✓ ถ่ายรูปแล้ว (~${kb} KB) — แตะเพื่อถ่ายใหม่`;
+      }catch(err){ resetPhotoBtn(); toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ---- wire up ----
+$("btnLogin").onclick = doLogin;
+$("inPass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("btnLogout").onclick = doLogout;
+$("btnBack").onclick = loadShops;
+$("btnReceive").onclick = doReceive;
+$("btnPhoto").onclick = () => $("photoInput").click();
+$("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handlePhoto(f); });
+$("discHead").onclick = () => $("disc").classList.toggle("open");
+document.querySelectorAll(".btn-step").forEach(b => b.onclick = () => {
+  const k = b.dataset.k, d = parseInt(b.dataset.d, 10);
+  vals[k] = Math.max(0, vals[k] + d);
+  renderCounters();
+});
+
+// ---- boot ----
+async function boot(){
+  if (!token){ show("screenLogin"); return; }
+  try{ const u = JSON.parse(localStorage.getItem("ks_user") || "{}");
+       $("whoami").textContent = u.full_name || u.username || "admin"; }catch(e){}
+  $("btnLogout").classList.remove("hidden");
+  gps = await getGps();
+  loadShops();
+}
+boot();
 </script>
 </body>
 </html>
