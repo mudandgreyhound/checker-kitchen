@@ -51,6 +51,19 @@
   .badge{background:var(--pink);color:var(--orange-dark);font-weight:800;border-radius:999px;padding:6px 13px;font-size:15px;white-space:nowrap;}
   .near{display:inline-block;font-size:11px;font-weight:600;color:#1E8E3E;background:#e7f4ea;border-radius:6px;padding:1px 7px;margin-left:6px;}
 
+  /* location banner (ยืนยันตำแหน่งแบบแผนที่) */
+  .locbar{display:flex;align-items:center;gap:11px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .locbar .lb-ic{width:36px;height:36px;border-radius:50%;flex:0 0 36px;display:flex;align-items:center;justify-content:center;font-size:19px;background:#eef3ff;}
+  .locbar .lb-tx{flex:1;line-height:1.3;}
+  .locbar .lb-tx b{display:block;font-weight:700;font-size:14px;color:var(--ink);}
+  .locbar .lb-tx span{display:block;color:var(--muted);font-size:12px;margin-top:2px;}
+  .locbar .lb-btn{border:none;background:var(--orange);color:#fff;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
+  .locbar .lb-btn:active{background:var(--orange-dark);transform:scale(.96);}
+  .locbar.ok .lb-ic{background:#e7f4ea;}
+  .locbar.warn .lb-ic{background:var(--pink);}
+  .spin{display:inline-block;width:17px;height:17px;border:2px solid #cdd7ee;border-top-color:var(--orange);border-radius:50%;animation:sp .8s linear infinite;}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
   /* receive: shop + BIG total */
   .shopcard{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
   .shopcard .name{font-weight:700;font-size:15px;margin-bottom:12px;}
@@ -128,6 +141,7 @@
 
   <!-- ===== SHOP LIST ===== -->
   <div id="screenShops" class="hidden">
+    <div id="locBar"></div>
     <div class="state" id="shopState">กำลังโหลดรายการร้าน…</div>
     <div id="shopList"></div>
   </div>
@@ -239,16 +253,58 @@ function doLogout(){
   show("screenLogin");
 }
 
-// ---- gps (best-effort) ----
+// ---- gps + location confirm (แบบแผนที่) ----
 function getGps(){
   return new Promise(resolve => {
     if (!navigator.geolocation) return resolve(null);
     navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude,
+                       acc: Math.round(pos.coords.accuracy || 0) }),
       () => resolve(null),
-      { enableHighAccuracy:true, timeout:8000, maximumAge:10000 }
+      { enableHighAccuracy:true, timeout:10000, maximumAge:10000 }
     );
   });
+}
+
+// สถานะสิทธิ์: "granted" | "prompt" | "denied" | "unknown"
+async function locPermission(){
+  try{
+    if (!navigator.permissions || !navigator.permissions.query) return "unknown";
+    const s = await navigator.permissions.query({ name: "geolocation" });
+    return s.state;
+  }catch(e){ return "unknown"; }
+}
+
+function renderLocBar(state){
+  const bar = $("locBar");
+  const set = (cls, ic, title, sub, btnLabel) => {
+    bar.className = "locbar " + cls;
+    bar.innerHTML = `<div class="lb-ic">${ic}</div>
+      <div class="lb-tx"><b>${title}</b><span>${sub}</span></div>` +
+      (btnLabel ? `<button class="lb-btn" id="lbBtn">${btnLabel}</button>` : "");
+    if (btnLabel) $("lbBtn").onclick = requestLocation;
+  };
+  if (state === "locating")
+    set("", '<span class="spin"></span>', "กำลังหาตำแหน่ง…", "กำลังยืนยันตำแหน่งอุปกรณ์ แป๊บนึง", "");
+  else if (state === "ok")
+    set("ok", "📍", "ยืนยันตำแหน่งแล้ว", `เรียงร้านตามระยะจากคุณ · ความแม่น ~${gps.acc} ม.`, "รีเฟรช");
+  else if (state === "denied")
+    set("warn", "⚠️", "ยังไม่ได้อนุญาตให้ใช้ตำแหน่ง", "แสดงทุกร้าน (ไม่เรียงตามระยะ) — เปิดสิทธิ์ตำแหน่งในเบราว์เซอร์แล้วลองใหม่", "ลองใหม่");
+  else // prompt / unknown / หาไม่เจอ
+    set("warn", "📍", "ยืนยันตำแหน่งของคุณ", "เพื่อเรียงร้านที่อยู่ใกล้คุณขึ้นก่อน", "ยืนยันตำแหน่ง");
+}
+
+async function requestLocation(){
+  renderLocBar("locating");
+  const g = await getGps();
+  if (g){
+    gps = g;
+    renderLocBar("ok");
+    fetchAndRenderShops();                     // ได้พิกัดแล้ว re-sort ตามระยะ
+  } else {
+    const st = await locPermission();
+    renderLocBar(st === "denied" ? "denied" : "prompt");
+  }
 }
 
 // ---- shop list ----
@@ -257,8 +313,15 @@ async function loadShops(){
   $("shopList").innerHTML = "";
   $("shopState").textContent = "กำลังโหลดรายการร้าน…";
   await fetchAndRenderShops();                 // แสดงทันทีด้วยพิกัดที่มีอยู่ (หรือ /shops)
-  const g = await getGps();                    // รีเฟรชพิกัดสดเบื้องหลัง
-  if (g){ gps = g; fetchAndRenderShops(); }    // ได้พิกัดใหม่แล้ว re-sort ตามระยะ
+  const st = await locPermission();
+  if (st === "granted"){                        // เคยอนุญาตแล้ว → หาตำแหน่งเงียบ ๆ
+    renderLocBar("locating");
+    const g = await getGps();
+    if (g){ gps = g; renderLocBar("ok"); fetchAndRenderShops(); }
+    else   { renderLocBar("prompt"); }
+  } else {
+    renderLocBar(st);                           // prompt / denied / unknown → ให้แตะยืนยันเอง
+  }
 }
 async function fetchAndRenderShops(){
   try{
@@ -342,6 +405,7 @@ async function doReceive(){
       shop_code: curShop.shop_code,
       lat: gps ? gps.lat : null,
       lng: gps ? gps.lng : null,
+      accuracy_m: gps ? gps.acc : null,
       photo_b64: photoDataUrl,
       donut_recv: vals.donut,
       munch_recv: vals.munch,
