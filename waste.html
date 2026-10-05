@@ -1,491 +1,437 @@
-"""
-waste_return router — รับโดนัท waste กลับจาก shop
-เสียบเข้า checker api.py (:8601) แบบ include_router — ไม่แตะ logic เดิม
-ไม่ import อะไรจาก api.py (กัน circular import) ต่อ DB / verify token ด้วย env เดียวกัน
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>รับ Waste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme: light;
+    --orange:#F26322; --orange-dark:#D9521A;
+    --green:#1E8E3E; --green-dark:#187532;
+    --ink:#20242b; --muted:#8a8f98; --line:#ececec;
+    --pink:#fdeae4; --bg:#f4f5f7; --card:#fff;
+    box-sizing:border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box}
+  html{scroll-padding-top: env(safe-area-inset-top, 0px);}
+  body{margin:0;font-family:"Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+       background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:460px;margin:0 auto;padding:14px 14px 48px;}
+  .hidden{display:none!important;}
 
-วางไฟล์นี้ที่ /opt/kitchen_checker/waste_return.py แล้วเพิ่มใน api.py 2 บรรทัด:
-    from waste_return import router as waste_return_router      # ต่อท้าย import
-    app.include_router(waste_return_router)                     # ถัดจาก app = FastAPI(...)
+  /* top bar */
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .dot{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb089,#F26322 70%);display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .brand .t1{font-weight:800;color:var(--orange);font-size:18px;line-height:1;}
+  .brand .t2{font-size:12px;color:var(--muted);margin-top:3px;}
+  .logout{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-size:13px;color:#444;font-family:inherit;cursor:pointer;}
 
-ดีไซน์ใหม่ (ต.ค. 2026):
-  - frontend คุม 2 ยอดใหญ่: donut_recv / munch_recv (ปรับ +/- ได้)
-  - เกณฑ์แบ่ง: item_code ขึ้นต้น DPF23 = มันช์กิ้น, ที่เหลือ = โดนัท
-  - detail ยัง insert ราย SKU ด้วยยอดคาด (expected) เหมือนเดิม → anti-join ซ่อนร้านที่รับแล้วทำงานต่อได้
-  - diff = (donut_recv + munch_recv) - expected_total  → ไว้ทำรายงานทีหลัง
-"""
-import os, hmac, hashlib, base64, json, time, math
-import datetime as dt
-import pymysql
-from fastapi import APIRouter, Header, HTTPException, Depends, Query
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
+  .backlink{text-align:center;color:#3a3f47;font-size:15px;padding:12px;background:#fff;border-radius:12px;margin-bottom:12px;font-weight:500;cursor:pointer;}
 
-# ---- toggle: True = ต้อง login (แนะนำ เพราะ tunnel เป็น public) ----
-REQUIRE_AUTH = True
+  /* login */
+  .login-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:30px;}
+  .login-card h2{margin:0 0 16px;color:var(--orange);font-size:20px;text-align:center;}
+  .fld{margin-bottom:12px;}
+  .fld label{display:block;font-size:13px;color:#555;margin-bottom:5px;font-weight:600;}
+  .fld input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;}
+  .fld input:focus{outline:none;border-color:var(--orange);}
 
-# ดึง waste ของ (return_date - N วัน): คีย์เย็นเมื่อวาน รับกลับวันนี้ → N=1
-LOOKBACK_DAYS = 1
+  /* shop list */
+  .shopitem{background:#fff;border-radius:12px;padding:15px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
+  .shopitem:active{background:#fafafa;}
+  .shopitem .sn{font-weight:700;font-size:15px;}
+  .shopitem .ss{font-size:12px;color:var(--muted);margin-top:3px;}
+  .badge{background:var(--pink);color:var(--orange-dark);font-weight:800;border-radius:999px;padding:6px 13px;font-size:15px;white-space:nowrap;}
+  .near{display:inline-block;font-size:11px;font-weight:600;color:#1E8E3E;background:#e7f4ea;border-radius:6px;padding:1px 7px;margin-left:6px;}
 
-# โฟลเดอร์เก็บรูปหลักฐานการรับ — /dev/md0p1 คือ root (/) เก็บที่ไหนก็ลงดิสก์ก้อนนี้
-# วางไว้นอก /opt/kitchen_checker (git repo) กันรูปโดน push ขึ้น GitHub
-PHOTO_DIR = "/opt/waste_photos"
+  /* receive: shop + BIG total */
+  .shopcard{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .shopcard .name{font-weight:700;font-size:15px;margin-bottom:12px;}
+  .totalbox{display:flex;align-items:baseline;justify-content:center;gap:10px;background:var(--pink);border-radius:14px;padding:14px;}
+  .totalbox .num{font-size:52px;font-weight:800;color:var(--orange);line-height:1;}
+  .totalbox .unit{font-size:18px;font-weight:600;color:var(--orange-dark);}
 
-# ---- geofence: ตรวจพิกัดคนขับ vs ที่ตั้งร้าน (shop_location) ตอนกดรับของ ----
-#   "off"   = ไม่ตรวจ (พฤติกรรมเดิม)
-#   "warn"  = ตรวจ + บันทึกสถานะ แต่ยังรับได้ (แนะนำช่วงแรก กัน shop_location ยังไม่ครบ)
-#   "block" = ไม่มี GPS / อยู่นอกรัศมี ทั้งที่ร้านมีพิกัด → ปฏิเสธ (403)
-GEOFENCE_MODE = os.getenv("GEOFENCE_MODE", "warn").strip().lower()
-GEOFENCE_DEFAULT_RADIUS_M = int(os.getenv("GEOFENCE_DEFAULT_RADIUS_M", "120"))
-GEOFENCE_SLACK_M = int(os.getenv("GEOFENCE_SLACK_M", "60"))   # เผื่อความคลาดเคลื่อน GPS
+  .photo{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 6px rgba(242,99,34,.3);}
+  .photo:active{background:var(--orange-dark);}
+  .photo.has{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
+  #photoPreview{width:100%;border-radius:12px;margin-bottom:12px;display:none;}
 
-# ---- เกณฑ์แบ่ง โดนัท / มันช์กิ้น ----
-MUNCH_PREFIX = "DPF23"
-def is_munch(code):
-    return bool(code) and str(code).strip().upper().startswith(MUNCH_PREFIX)
+  .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
+  .counter .ctrl{display:flex;align-items:center;gap:10px;}
+  .btn-step{width:52px;height:52px;border-radius:12px;border:none;font-size:28px;font-weight:700;font-family:inherit;color:#fff;background:var(--orange);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .btn-step.minus{background:#fff;color:var(--orange);border:2px solid var(--orange);}
+  .btn-step:active{transform:scale(.94);}
+  .counter .cval{font-size:38px;font-weight:800;min-width:70px;text-align:center;}
+  .counter .cunit{font-size:16px;font-weight:600;color:#555;min-width:28px;}
 
-# ---- DB: ค่าเดียวกับ api.py (env เดียวกัน) ----
-DB = dict(
-    host=os.getenv("MYSQL_HOST", "10.8.1.88"),
-    port=int(os.getenv("MYSQL_PORT", "3306")),
-    user=os.getenv("MYSQL_USER", "admin"),
-    password=os.getenv("MYSQL_PASSWORD", ""),
-    database=os.getenv("MYSQL_DB", "GD_Dashboard"),
-    charset="utf8mb4",
-    cursorclass=pymysql.cursors.DictCursor,
-    connect_timeout=5,
-)
-AUTH_SECRET = os.getenv("AUTH_SECRET", "kitchen-stock-secret-change-me-2026")
+  .receive{width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:18px;font-size:19px;font-weight:800;font-family:inherit;margin:6px 0 18px;cursor:pointer;box-shadow:0 2px 8px rgba(30,142,62,.3);}
+  .receive:active{background:var(--green-dark);}
+  .receive:disabled{opacity:.6;}
 
-# ============================================================
-#  *** แก้ 5 ค่านี้ให้ตรง `DESCRIBE fact_waste_item;` ***
-# ============================================================
-FWI = dict(table="fact_waste_item", shop="shop_code",
-           date="waste_date", item="item_code", qty="waste_qty")
-F = FWI
+  /* collapsible list */
+  .disclosure{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;}
+  .disc-head{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;font-family:inherit;padding:16px;cursor:pointer;color:#3a3f47;}
+  .disc-head .dh-left{font-size:15px;font-weight:600;}
+  .disc-head .count-chip{font-size:12px;color:var(--muted);margin-left:6px;}
+  .chev{transition:transform .22s;font-size:14px;color:var(--muted);}
+  .disclosure.open .chev{transform:rotate(180deg);}
+  .disc-body{display:none;border-top:1px solid var(--line);}
+  .disclosure.open .disc-body{display:block;}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line);}
+  .row:last-child{border-bottom:none;}
+  .row .rn{font-weight:700;font-size:14px;}
+  .row .tag{display:inline-block;font-size:11px;font-weight:600;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:middle;}
+  .tag.d{background:#F26322;} .tag.m{background:#8a5cf6;}
+  .row .rsub{font-size:12px;color:var(--muted);margin-top:3px;}
+  .row .rqty{font-size:22px;font-weight:800;min-width:44px;text-align:right;}
 
-# ตาราง master ชื่อสินค้า (item_code -> ชื่อ) ใช้โชว์ชื่อในหน้ารับ
-ITEM_DIM = dict(table="connect_dim_item", code="item_code", name="item_name")
+  /* generic */
+  .btn{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .btn:active{background:var(--orange-dark);}
+  .state{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:99;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;}
+  .toast.show{opacity:.95;}
+  .toast.err{background:#b3261e;}
+</style>
+</head>
+<body>
+<div class="wrap">
 
+  <div class="topbar">
+    <div class="brand">
+      <div class="dot">🍩</div>
+      <div>
+        <div class="t1">รับโดนัท 🍩 กลับ</div>
+        <div class="t2" id="whoami">—</div>
+      </div>
+    </div>
+    <button class="logout hidden" id="btnLogout">log out</button>
+  </div>
 
-def db():
-    return pymysql.connect(**DB)
+  <!-- ===== LOGIN ===== -->
+  <div id="screenLogin" class="hidden">
+    <div class="login-card">
+      <h2>🍩 เข้าสู่ระบบ</h2>
+      <div class="fld"><label>Username</label><input id="inUser" autocomplete="username"></div>
+      <div class="fld"><label>Password</label><input id="inPass" type="password" autocomplete="current-password"></div>
+      <button class="btn" id="btnLogin">เข้าสู่ระบบ</button>
+    </div>
+  </div>
 
+  <!-- ===== SHOP LIST ===== -->
+  <div id="screenShops" class="hidden">
+    <div class="state" id="shopState">กำลังโหลดรายการร้าน…</div>
+    <div id="shopList"></div>
+  </div>
 
-# ---- verify token (สคีมเดียวกับ api.py make_token/read_token) ----
-def _ub64(s):
-    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+  <!-- ===== RECEIVE ===== -->
+  <div id="screenReceive" class="hidden">
+    <div class="backlink" id="btnBack">← เลือกร้านอื่น</div>
 
-def _verify_token(tok):
-    try:
-        p, sig = tok.split(".")
-        exp = base64.urlsafe_b64encode(
-            hmac.new(AUTH_SECRET.encode(), p.encode(), hashlib.sha256).digest()
-        ).rstrip(b"=").decode()
-        if not hmac.compare_digest(sig, exp):
-            return None
-        payload = json.loads(_ub64(p))
-        return None if payload.get("exp", 0) < time.time() else payload
-    except Exception:
-        return None
+    <div class="shopcard">
+      <div class="name" id="rcName">—</div>
+      <div class="totalbox"><span class="num" id="grandTotal">0</span><span class="unit">ชิ้น</span></div>
+    </div>
 
-def require_user(authorization: str = Header(None)):
-    if not REQUIRE_AUTH:
-        return None
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "ต้อง login ก่อน")
-    u = _verify_token(authorization[7:])
-    if not u:
-        raise HTTPException(401, "token ไม่ถูกต้อง/หมดอายุ")
-    return u
+    <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
+    <input id="photoInput" type="file" accept="image/*" capture="environment" class="hidden">
+    <img id="photoPreview" alt="รูปที่รับ">
 
+    <div class="counter">
+      <div class="clabel">โดนัท</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="donut" data-d="-1">−</button>
+        <div class="cval" id="donutVal">0</div>
+        <button class="btn-step" data-k="donut" data-d="1">+</button>
+      </div>
+      <div class="cunit">ชิ้น</div>
+    </div>
 
-router = APIRouter(prefix="/api/waste-return", tags=["waste-return"])
+    <div class="counter">
+      <div class="clabel">มันช์กิ้น</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="munch" data-d="-1">−</button>
+        <div class="cval" id="munchVal">0</div>
+        <button class="btn-step" data-k="munch" data-d="1">+</button>
+      </div>
+      <div class="cunit">ชิ้น</div>
+    </div>
 
-# waste line ที่ "ถูกรับแล้ว" (match shop_code + waste_date + item_code)
-RECEIVED_SQL = """
-    SELECT h.shop_code, d.waste_date, d.item_code
-    FROM waste_return_detail d
-    JOIN waste_return_header h ON h.return_id = d.return_id
-    WHERE h.status <> 'VOID'
-"""
+    <button class="receive" id="btnReceive">✓ รับของ</button>
 
+    <div class="disclosure" id="disc">
+      <button class="disc-head" id="discHead">
+        <span class="dh-left">ดูรายการโดนัททั้งหมด<span class="count-chip" id="discCount"></span></span>
+        <span class="chev">▼</span>
+      </button>
+      <div class="disc-body" id="discBody"></div>
+    </div>
+  </div>
 
-def _waste_date_for(for_date=None):
-    """waste_date ที่จะรับ = (return_date หรือวันนี้) - LOOKBACK_DAYS"""
-    base = for_date or dt.date.today()
-    return base - dt.timedelta(days=LOOKBACK_DAYS)
+</div>
+<div class="toast" id="toast"></div>
 
+<script>
+"use strict";
+const API_BASE = "https://kitchen_checker.mobile1234.site";
+const TOKEN_KEY = "ks_token";
 
-def _pending_shops(target_date):
-    """ร้านที่มี waste ของ target_date ยังไม่ถูกรับ + ชื่อร้านจาก dim_shop + ยอด pending"""
-    sql = f"""
-        SELECT f.{F['shop']} AS shop_code,
-               ds.shop_name,
-               SUM(f.{F['qty']}) AS pending_qty,
-               COUNT(*)          AS line_count,
-               MIN(f.{F['date']}) AS waste_date
-        FROM {F['table']} f
-        LEFT JOIN ({RECEIVED_SQL}) r
-               ON r.shop_code = f.{F['shop']}
-              AND r.waste_date = f.{F['date']}
-              AND r.item_code  = f.{F['item']}
-        LEFT JOIN dim_shop ds ON ds.shop_code = f.{F['shop']}
-        WHERE r.shop_code IS NULL
-          AND f.{F['date']} = %s
-        GROUP BY f.{F['shop']}, ds.shop_name
-        HAVING pending_qty > 0
-        ORDER BY pending_qty DESC
-    """
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql, (target_date,))
-            return cur.fetchall()
-    finally:
-        conn.close()
+// ---- state ----
+let token = localStorage.getItem(TOKEN_KEY) || "";
+let gps = null;                 // {lat,lng}
+let curShop = null;             // {shop_code, shop_name}
+let items = [];                 // ราย SKU ของร้านปัจจุบัน
+let vals = { donut: 0, munch: 0 };
+let photoDataUrl = null;
 
+// ---- helpers ----
+const $ = id => document.getElementById(id);
+function show(screen){
+  ["screenLogin","screenShops","screenReceive"].forEach(s => $(s).classList.add("hidden"));
+  $(screen).classList.remove("hidden");
+}
+function toast(msg, err){
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (err ? " err" : "");
+  setTimeout(() => t.className = "toast", 2200);
+}
+function isMunch(code){ return !!code && String(code).trim().toUpperCase().startsWith("DPF23"); }
 
-@router.get("/health")
-def health():
-    return {"ok": True, "module": "waste-return", "auth": REQUIRE_AUTH}
+async function api(path, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({ "Content-Type": "application/json" },
+                               opts.headers || {},
+                               token ? { Authorization: "Bearer " + token } : {});
+  const res = await fetch(API_BASE + path, opts);
+  if (res.status === 401){ doLogout(); throw new Error("หมดเวลา เข้าสู่ระบบใหม่"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || ("error " + res.status));
+  return data;
+}
 
+// ---- auth ----
+async function doLogin(){
+  const u = $("inUser").value.trim(), p = $("inPass").value;
+  if (!u || !p) return toast("กรอก username / password", true);
+  $("btnLogin").disabled = true;
+  try{
+    const r = await api("/api/login", { method:"POST", body: JSON.stringify({ username:u, password:p }) });
+    token = r.token;
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem("ks_user", JSON.stringify(r.user || {}));
+    boot();
+  }catch(e){ toast(e.message, true); }
+  finally{ $("btnLogin").disabled = false; }
+}
+function doLogout(){
+  token = ""; localStorage.removeItem(TOKEN_KEY);
+  $("btnLogout").classList.add("hidden");
+  $("whoami").textContent = "—";
+  show("screenLogin");
+}
 
-@router.get("/shops")
-def shops(for_date: dt.date | None = Query(None), user=Depends(require_user)):
-    return _pending_shops(_waste_date_for(for_date))
+// ---- gps (best-effort) ----
+function getGps(){
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy:true, timeout:8000, maximumAge:10000 }
+    );
+  });
+}
 
+// ---- shop list ----
+async function loadShops(){
+  show("screenShops");
+  $("shopList").innerHTML = "";
+  $("shopState").textContent = "กำลังโหลดรายการร้าน…";
+  await fetchAndRenderShops();                 // แสดงทันทีด้วยพิกัดที่มีอยู่ (หรือ /shops)
+  const g = await getGps();                    // รีเฟรชพิกัดสดเบื้องหลัง
+  if (g){ gps = g; fetchAndRenderShops(); }    // ได้พิกัดใหม่แล้ว re-sort ตามระยะ
+}
+async function fetchAndRenderShops(){
+  try{
+    let rows;
+    if (gps) {
+      rows = await api(`/api/waste-return/nearby?lat=${gps.lat}&lng=${gps.lng}`);
+      if (!rows.length) rows = await api("/api/waste-return/shops"); // fallback ถ้ายังไม่มีพิกัดร้าน
+    } else {
+      rows = await api("/api/waste-return/shops");
+    }
+    renderShops(rows);
+  }catch(e){ $("shopState").textContent = "โหลดไม่สำเร็จ: " + e.message; }
+}
+function renderShops(rows){
+  if (!rows.length){ $("shopState").textContent = "ไม่มีร้านที่ต้องรับวันนี้ 🎉"; return; }
+  $("shopState").textContent = `มี ${rows.length} ร้านที่ต้องรับ`;
+  const box = $("shopList");
+  rows.forEach(r => {
+    const name = r.shop_name || r.shop_code;
+    const dist = (r.distance_m != null)
+      ? `<span class="near">${r.within_radius ? "อยู่ที่ร้าน" : (r.distance_m >= 1000 ? (r.distance_m/1000).toFixed(1)+" กม." : r.distance_m+" ม.")}</span>`
+      : "";
+    const el = document.createElement("div");
+    el.className = "shopitem";
+    el.innerHTML = `<div><div class="sn">${name}${dist}</div><div class="ss">${r.shop_code} · ${r.line_count||0} รายการ</div></div>
+                    <div class="badge">${r.pending_qty} ชิ้น</div>`;
+    el.onclick = () => openReceive(r);
+    box.appendChild(el);
+  });
+}
 
-@router.get("/nearby")
-def nearby(lat: float = Query(...), lng: float = Query(...),
-           for_date: dt.date | None = Query(None), user=Depends(require_user)):
-    """ร้าน pending ทุกร้าน เรียงตามระยะ; ร้านที่ยังไม่มีพิกัดไปต่อท้าย (ไม่หายไปเงียบ ๆ)"""
-    pend = _pending_shops(_waste_date_for(for_date))
-    if not pend:
-        return []
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT shop_code, lat, lng, radius_m FROM shop_location "
-                        "WHERE lat IS NOT NULL AND lng IS NOT NULL")
-            locs = {r["shop_code"]: r for r in cur.fetchall()}
-    finally:
-        conn.close()
-    out = []
-    for p in pend:
-        row = dict(p)
-        l = locs.get(p["shop_code"])
-        if l:
-            d = _haversine_m(lat, lng, float(l["lat"]), float(l["lng"]))
-            row["distance_m"] = round(d)
-            row["within_radius"] = d <= float(l["radius_m"] or GEOFENCE_DEFAULT_RADIUS_M)
-            row["has_location"] = True
-        else:
-            row["distance_m"] = None          # ยังไม่ลงพิกัดร้านนี้
-            row["within_radius"] = None
-            row["has_location"] = False
-        out.append(row)
-    # ร้านมีพิกัดก่อน (ใกล้→ไกล) แล้วตามด้วยร้านไม่มีพิกัด
-    out.sort(key=lambda x: (x["distance_m"] is None,
-                            x["distance_m"] if x["distance_m"] is not None else 0))
-    return out
+// ---- receive ----
+async function openReceive(shop){
+  curShop = shop;
+  resetPhotoBtn();
+  $("photoInput").value = "";
+  $("rcName").textContent = (shop.shop_name || "") + " · " + shop.shop_code;
+  show("screenReceive");
+  $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
+  try{
+    items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
+    vals = { donut: 0, munch: 0 };
+    items.forEach(it => {
+      // ใช้ is_munch จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code (เผื่อ backend ยังไม่ deploy/restart)
+      it._munch = (it.is_munch === true || it.is_munch === false) ? it.is_munch : isMunch(it.item_code);
+      if (it._munch) vals.munch += (it.expected_qty||0);
+      else vals.donut += (it.expected_qty||0);
+    });
+    renderDetail();
+    renderCounters();
+  }catch(e){ $("discBody").innerHTML = `<div class="state">โหลดไม่สำเร็จ: ${e.message}</div>`; }
+}
+function renderCounters(){
+  $("donutVal").textContent = vals.donut;
+  $("munchVal").textContent = vals.munch;
+  $("grandTotal").textContent = vals.donut + vals.munch;
+}
+function renderDetail(){
+  $("discCount").textContent = `${items.length} รายการ`;
+  const body = $("discBody");
+  body.innerHTML = "";
+  items.forEach(it => {
+    const tag = (it._munch ?? isMunch(it.item_code)) ? '<span class="tag m">มันช์กิ้น</span>' : '<span class="tag d">โดนัท</span>';
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML = `<div><div class="rn">${it.item_name || it.item_code}${tag}</div>
+                    <div class="rsub">${it.item_code} · waste ${it.waste_date}</div></div>
+                    <div class="rqty">${it.expected_qty}</div>`;
+    body.appendChild(el);
+  });
+}
 
+async function doReceive(){
+  if (!items.length) return toast("ไม่มีรายการรับ", true);
+  if (!photoDataUrl && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
+  $("btnReceive").disabled = true;
+  try{
+    const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
+    if (fresh) gps = fresh;
+    const payload = {
+      shop_code: curShop.shop_code,
+      lat: gps ? gps.lat : null,
+      lng: gps ? gps.lng : null,
+      photo_b64: photoDataUrl,
+      donut_recv: vals.donut,
+      munch_recv: vals.munch,
+      items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
+    };
+    const r = await api("/api/waste-return/receive", { method:"POST", body: JSON.stringify(payload) });
+    let msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
+    if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
+    toast(msg);
+    loadShops();
+  }catch(e){ toast(e.message, true); }
+  finally{ $("btnReceive").disabled = false; }
+}
 
-@router.get("/pending")
-def pending(shop_code: str = Query(...), for_date: dt.date | None = Query(None),
-            user=Depends(require_user)):
-    """waste ของร้านนี้ เฉพาะ waste_date = (return_date - LOOKBACK_DAYS) ที่ยังไม่ถูกรับ
-       แนบ is_munch ให้ด้วย (frontend เอาไปแยกยอด โดนัท/มันช์กิ้น)"""
-    target = _waste_date_for(for_date)
-    I = ITEM_DIM
-    sql = f"""
-        SELECT f.{F['item']} AS item_code,
-               di.{I['name']} AS item_name,
-               f.{F['date']} AS waste_date,
-               SUM(f.{F['qty']}) AS expected_qty
-        FROM {F['table']} f
-        LEFT JOIN ({RECEIVED_SQL}) r
-               ON r.shop_code = f.{F['shop']}
-              AND r.waste_date = f.{F['date']}
-              AND r.item_code  = f.{F['item']}
-        LEFT JOIN {I['table']} di ON di.{I['code']} = f.{F['item']}
-        WHERE f.{F['shop']} = %s
-          AND f.{F['date']} = %s
-          AND r.shop_code IS NULL
-        GROUP BY f.{F['item']}, di.{I['name']}, f.{F['date']}
-        HAVING expected_qty > 0
-        ORDER BY f.{F['item']}
-    """
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(sql, (shop_code, target))
-            rows = cur.fetchall()
-    finally:
-        conn.close()
-    for r in rows:
-        r["is_munch"] = is_munch(r["item_code"])
-        r["expected_qty"] = int(r["expected_qty"] or 0)
-    return rows
+// ---- photo: ย่อ + ปั๊ก location ลงรูป (กันพัง: ไม่หน่วงรอ GPS, มี error handler) ----
+function resetPhotoBtn(){
+  photoDataUrl = null;
+  $("photoPreview").style.display = "none";
+  $("btnPhoto").className = "photo";
+  $("btnPhoto").textContent = "📷 ถ่ายรูปโดนัทที่รับ";
+}
+function handlePhoto(file){
+  $("btnPhoto").textContent = "กำลังประมวลผลรูป…";
+  // ถ้ายังไม่มีพิกัด ลองดึงใหม่เบื้องหลัง (ไม่หน่วงการแสดงรูป) ไว้ใช้ตอนกดรับของ
+  if (!gps) getGps().then(g => { if (g) gps = g; });
 
+  const reader = new FileReader();
+  reader.onerror = () => { resetPhotoBtn(); toast("อ่านไฟล์รูปไม่สำเร็จ ลองใหม่", true); };
+  reader.onload = e => {
+    const img = new Image();
+    img.onerror = () => { resetPhotoBtn(); toast("เปิดรูปไม่สำเร็จ (ไฟล์อาจไม่รองรับ เช่น HEIC) ลองถ่ายใหม่", true); };
+    img.onload = () => {
+      try{
+        const MAX = 1280;
+        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        if (!w || !h){ resetPhotoBtn(); toast("รูปเสียหาย ลองใหม่", true); return; }
+        if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+        else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        const ctx = cv.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        // แถบข้อมูล 3 บรรทัดล่างรูป
+        const lines = [
+          new Date().toLocaleString("th-TH"),
+          "สาขา " + (curShop.shop_name ? (curShop.shop_name + " · ") : "") + curShop.shop_code,
+          gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
+        ];
+        const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
+        const barH = lines.length*(fs+p)+p;
+        ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
+        ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
+        lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
+        photoDataUrl = cv.toDataURL("image/jpeg", 0.7);
+        const pv = $("photoPreview");
+        pv.src = photoDataUrl; pv.style.display = "block";
+        const kb = Math.round(photoDataUrl.length*0.75/1024);
+        $("btnPhoto").className = "photo has";
+        $("btnPhoto").textContent = `✓ ถ่ายรูปแล้ว (~${kb} KB) — แตะเพื่อถ่ายใหม่`;
+      }catch(err){ resetPhotoBtn(); toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 
-class ReceiveItem(BaseModel):
-    item_code: str
-    waste_date: dt.date
-    expected_qty: int = 0
+// ---- wire up ----
+$("btnLogin").onclick = doLogin;
+$("inPass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("btnLogout").onclick = doLogout;
+$("btnBack").onclick = loadShops;
+$("btnReceive").onclick = doReceive;
+$("btnPhoto").onclick = () => $("photoInput").click();
+$("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handlePhoto(f); });
+$("discHead").onclick = () => $("disc").classList.toggle("open");
+document.querySelectorAll(".btn-step").forEach(b => b.onclick = () => {
+  const k = b.dataset.k, d = parseInt(b.dataset.d, 10);
+  vals[k] = Math.max(0, vals[k] + d);
+  renderCounters();
+});
 
-class ReceivePayload(BaseModel):
-    shop_code: str
-    driver: str | None = None
-    return_date: dt.date | None = None
-    lat: float | None = None
-    lng: float | None = None
-    accuracy_m: float | None = None   # ความคลาดเคลื่อน GPS (เมตร) ถ้า frontend ส่งมา
-    note: str | None = None
-    photo_b64: str | None = None      # dataURL/base64 ของรูป (ย่อ+ปั๊ก location มาแล้วจาก frontend)
-    donut_recv: int = 0               # ยอดโดนัทที่รับจริง (frontend ปรับ +/-)
-    munch_recv: int = 0               # ยอดมันช์กิ้นที่รับจริง (frontend ปรับ +/-)
-    items: list[ReceiveItem]          # ราย SKU ตามยอดคาด → insert detail เหมือนเดิม
-
-
-def _save_photo(data_url, rdate, shop_code, return_id):
-    """เขียนรูป (base64) ลง PHOTO_DIR/<วันที่>/<shop>_<id>.jpg คืน relative path"""
-    b64 = data_url.split(",", 1)[1] if "," in data_url else data_url
-    raw = base64.b64decode(b64)
-    day = str(rdate)
-    folder = os.path.join(PHOTO_DIR, day)
-    os.makedirs(folder, exist_ok=True)
-    rel = os.path.join(day, f"{shop_code}_{return_id}.jpg")
-    with open(os.path.join(PHOTO_DIR, rel), "wb") as f:
-        f.write(raw)
-    return rel
-
-
-# ---- geofence helpers: เทียบพิกัดคนขับ vs ที่ตั้งร้าน (shop_location) ----
-def _shop_loc(cur, shop_code):
-    cur.execute("SELECT lat, lng, radius_m FROM shop_location "
-                "WHERE shop_code=%s AND lat IS NOT NULL AND lng IS NOT NULL LIMIT 1",
-                (shop_code,))
-    return cur.fetchone()
-
-def _geofence_eval(loc, lat, lng, accuracy_m=None):
-    """ประเมินพิกัดคนขับเทียบที่ตั้งร้าน
-       status: no_shop_location | no_gps | within | outside"""
-    if not loc:
-        return {"status": "no_shop_location", "dist_m": None,
-                "radius_m": None, "within": None}
-    radius = float(loc["radius_m"] or GEOFENCE_DEFAULT_RADIUS_M)
-    if lat is None or lng is None:
-        return {"status": "no_gps", "dist_m": None, "radius_m": radius, "within": False}
-    dm = _haversine_m(float(lat), float(lng), float(loc["lat"]), float(loc["lng"]))
-    tol = radius + max(GEOFENCE_SLACK_M, float(accuracy_m or 0))   # เผื่อความคลาดเคลื่อน GPS
-    within = dm <= tol
-    return {"status": "within" if within else "outside",
-            "dist_m": round(dm), "radius_m": radius, "within": within}
-
-
-@router.post("/receive")
-def receive(p: ReceivePayload, user=Depends(require_user)):
-    if not p.items:
-        raise HTTPException(400, "ไม่มีรายการรับ")
-    rdate = p.return_date or dt.date.today()
-    driver = p.driver or (user.get("sub") if user else None)
-
-    donut = int(p.donut_recv or 0)
-    munch = int(p.munch_recv or 0)
-    total = donut + munch                                   # ยอดรับจริง = 2 ก้อนใหญ่
-    expected_total = sum(int(i.expected_qty or 0) for i in p.items)   # ยอดคาดรวม
-
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            # ---- geofence: เทียบพิกัดคนขับ vs shop_location ก่อนบันทึก ----
-            geo = _geofence_eval(_shop_loc(cur, p.shop_code), p.lat, p.lng, p.accuracy_m)
-            if GEOFENCE_MODE == "block" and geo["status"] in ("no_gps", "outside"):
-                raise HTTPException(403,
-                    "เปิด GPS ก่อนรับของ (ร้านนี้ลงทะเบียนพิกัดไว้แล้ว)"
-                    if geo["status"] == "no_gps" else
-                    f"อยู่นอกพื้นที่ร้าน ~{geo['dist_m']} ม. "
-                    f"(อนุญาต {int(geo['radius_m'])} ม.) — ไปที่ร้านก่อนกดรับ")
-
-            # คอลัมน์เสริมเพื่อ audit — เขียนเฉพาะถ้ามีใน schema (ไม่พังถ้ายังไม่ migrate)
-            hcols = _table_cols(cur, "waste_return_header")
-            cols = ["shop_code", "return_date", "driver", "recv_lat", "recv_lng",
-                    "total_recv", "donut_recv", "munch_recv", "expected_total",
-                    "status", "note"]
-            vals = [p.shop_code, rdate, driver, p.lat, p.lng,
-                    total, donut, munch, expected_total, "RECEIVED", p.note]
-            if "geo_status" in hcols:
-                cols.append("geo_status"); vals.append(geo["status"])
-            if "geo_dist_m" in hcols:
-                cols.append("geo_dist_m"); vals.append(geo["dist_m"])
-            cur.execute(
-                f"INSERT INTO waste_return_header ({', '.join(cols)}) "
-                f"VALUES ({', '.join(['%s'] * len(cols))})", vals)
-            rid = cur.lastrowid
-            # detail: ยัดราย SKU ตามยอดคาด (recv_qty = expected_qty) เพื่อให้ anti-join ซ่อนร้านนี้
-            cur.executemany(
-                """INSERT INTO waste_return_detail
-                   (return_id, item_code, waste_date, expected_qty, recv_qty)
-                   VALUES (%s,%s,%s,%s,%s)""",
-                [(rid, i.item_code, i.waste_date, int(i.expected_qty or 0),
-                  int(i.expected_qty or 0)) for i in p.items])
-            if p.photo_b64:
-                path = _save_photo(p.photo_b64, rdate, p.shop_code, rid)
-                cur.execute("UPDATE waste_return_header SET photo_path=%s WHERE return_id=%s",
-                            (path, rid))
-            # NOTE: ไม่เขียนพิกัดคนขับลง shop_location (เก็บใน recv_lat/recv_lng พอสำหรับ audit)
-            # ที่ตั้งร้านจริงต้องมาจาก QR (Location_Export_QR) เท่านั้น — เลี่ยง GPS คนขับทับพิกัดร้าน
-        conn.commit()
-    except HTTPException:
-        conn.rollback()
-        raise                       # ปล่อย 400/403 ผ่าน ไม่ให้โดนห่อเป็น 500
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(500, f"บันทึกไม่สำเร็จ: {e}")
-    finally:
-        conn.close()
-    return {"ok": True, "return_id": rid, "total_recv": total,
-            "donut_recv": donut, "munch_recv": munch,
-            "expected_total": expected_total, "diff": total - expected_total,
-            "geo": geo}
-
-
-@router.get("/photo")
-def photo(return_id: int = Query(...), user=Depends(require_user)):
-    """ดูรูปหลักฐานการรับของใบนั้น"""
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT photo_path FROM waste_return_header WHERE return_id=%s",
-                        (return_id,))
-            row = cur.fetchone()
-    finally:
-        conn.close()
-    if not row or not row.get("photo_path"):
-        raise HTTPException(404, "ไม่มีรูป")
-    full = os.path.join(PHOTO_DIR, row["photo_path"])
-    if not os.path.exists(full):
-        raise HTTPException(404, "ไฟล์รูปหาย")
-    return FileResponse(full, media_type="image/jpeg")
-
-
-@router.get("/summary")
-def summary(day: dt.date | None = Query(None), user=Depends(require_user)):
-    """ยอดรวมรับกลับของวัน (total + โดนัท/มันช์กิ้น + คาด + diff + per-SKU)"""
-    d = day or dt.date.today()
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT COALESCE(SUM(total_recv),0)     AS total_recv,
-                          COALESCE(SUM(donut_recv),0)     AS donut_recv,
-                          COALESCE(SUM(munch_recv),0)     AS munch_recv,
-                          COALESCE(SUM(expected_total),0) AS expected_total,
-                          COUNT(*)                        AS return_count
-                   FROM waste_return_header
-                   WHERE return_date=%s AND status<>'VOID'""", (d,))
-            head = cur.fetchone()
-            cur.execute(
-                """SELECT d.item_code, SUM(d.recv_qty) AS recv_qty
-                   FROM waste_return_detail d
-                   JOIN waste_return_header h ON h.return_id=d.return_id
-                   WHERE h.return_date=%s AND h.status<>'VOID'
-                   GROUP BY d.item_code ORDER BY recv_qty DESC""", (d,))
-            by_sku = cur.fetchall()
-    finally:
-        conn.close()
-    head["diff"] = int(head["total_recv"]) - int(head["expected_total"])
-    return {"date": str(d), **head, "by_sku": by_sku}
-
-
-def _table_cols(cur, table):
-    cur.execute(f"SHOW COLUMNS FROM {table}")
-    return {c["Field"] for c in cur.fetchall()}
-
-
-@router.get("/report")
-def report(day: dt.date | None = Query(None), user=Depends(require_user)):
-    """รายงานการรับ waste ของวัน: ยอดรวม + ราย shop (diff + ระยะ GPS จากร้าน) + ร้านค้าง"""
-    d = day or dt.date.today()
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cols = _table_cols(cur, "waste_return_header")
-            sel_ts = ", h.created_at AS received_at" if "created_at" in cols else ""
-            cur.execute(f"""
-                SELECT h.return_id, h.shop_code, ds.shop_name, h.driver,
-                       h.total_recv, h.donut_recv, h.munch_recv, h.expected_total,
-                       h.recv_lat, h.recv_lng, h.status, h.photo_path{sel_ts}
-                FROM waste_return_header h
-                LEFT JOIN dim_shop ds ON ds.shop_code = h.shop_code
-                WHERE h.return_date = %s AND h.status <> 'VOID'
-                ORDER BY h.return_id DESC
-            """, (d,))
-            received = cur.fetchall()
-            cur.execute("SELECT shop_code, lat, lng, radius_m FROM shop_location "
-                        "WHERE lat IS NOT NULL AND lng IS NOT NULL")
-            loc = {r["shop_code"]: r for r in cur.fetchall()}
-    finally:
-        conn.close()
-
-    tot = dict(shops_received=len(received), donut_recv=0, munch_recv=0,
-               total_recv=0, expected_total=0, diff=0)
-    for r in received:
-        for k in ("total_recv", "donut_recv", "munch_recv", "expected_total"):
-            r[k] = int(r.get(k) or 0)
-        r["diff"] = r["total_recv"] - r["expected_total"]
-        r["has_photo"] = bool(r.get("photo_path"))
-        r.pop("photo_path", None)
-        l = loc.get(r["shop_code"])
-        if l and r.get("recv_lat") is not None and r.get("recv_lng") is not None:
-            dm = _haversine_m(float(r["recv_lat"]), float(r["recv_lng"]),
-                              float(l["lat"]), float(l["lng"]))
-            r["dist_m"] = round(dm)
-            r["far"] = dm > float(l["radius_m"] or GEOFENCE_DEFAULT_RADIUS_M)   # รับไกลเกิน radius ร้าน = น่าสงสัย
-        else:
-            r["dist_m"] = None
-            r["far"] = None
-        tot["donut_recv"] += r["donut_recv"]
-        tot["munch_recv"] += r["munch_recv"]
-        tot["total_recv"] += r["total_recv"]
-        tot["expected_total"] += r["expected_total"]
-    tot["diff"] = tot["total_recv"] - tot["expected_total"]
-
-    pend = _pending_shops(_waste_date_for(d))
-    tot["shops_pending"] = len(pend)
-    tot["pending_qty"] = sum(int(p.get("pending_qty") or 0) for p in pend)
-    return {"date": str(d), "totals": tot, "received": received, "pending": pend}
-
-
-@router.get("/report/detail")
-def report_detail(return_id: int = Query(...), user=Depends(require_user)):
-    """ราย SKU ของใบรับหนึ่งใบ (ยอดคาด vs ยอดรับ) — ใช้กางดู diff ราย SKU"""
-    I = ITEM_DIM
-    conn = db()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(f"""
-                SELECT d.item_code, di.{I['name']} AS item_name,
-                       d.expected_qty, d.recv_qty
-                FROM waste_return_detail d
-                LEFT JOIN {I['table']} di ON di.{I['code']} = d.item_code
-                WHERE d.return_id = %s
-                ORDER BY d.item_code
-            """, (return_id,))
-            rows = cur.fetchall()
-    finally:
-        conn.close()
-    for r in rows:
-        r["is_munch"] = is_munch(r["item_code"])
-        r["expected_qty"] = int(r["expected_qty"] or 0)
-        r["recv_qty"] = int(r["recv_qty"] or 0)
-    return rows
-
-
-def _haversine_m(lat1, lng1, lat2, lng2):
-    R = 6371000
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp = math.radians(lat2 - lat1)
-    dl = math.radians(lng2 - lng1)
-    a = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
-    return 2 * R * math.asin(math.sqrt(a))
+// ---- boot ----
+async function boot(){
+  if (!token){ show("screenLogin"); return; }
+  try{ const u = JSON.parse(localStorage.getItem("ks_user") || "{}");
+       $("whoami").textContent = u.full_name || u.username || "admin"; }catch(e){}
+  $("btnLogout").classList.remove("hidden");
+  loadShops();   // loadShops ดึง GPS สดเองแล้ว
+}
+boot();
+</script>
+</body>
+</html>
