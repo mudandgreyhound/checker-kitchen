@@ -3,116 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>รับ Waste</title>
+<title>รายงานรับ Waste</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     color-scheme: light;
-    --orange:#F26322; --orange-dark:#D9521A;
-    --green:#1E8E3E; --green-dark:#187532;
-    --ink:#20242b; --muted:#8a8f98; --line:#ececec;
+    --orange:#F26322; --orange-dark:#D9521A; --green:#1E8E3E;
+    --red:#c62828; --ink:#20242b; --muted:#8a8f98; --line:#ececec;
     --pink:#fdeae4; --bg:#f4f5f7; --card:#fff;
     box-sizing:border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box}
-  html{scroll-padding-top: env(safe-area-inset-top, 0px);}
-  body{margin:0;font-family:"Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
-       background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:460px;margin:0 auto;padding:14px 14px 48px;}
+  body{margin:0;font-family:"Noto Sans Thai",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1000px;margin:0 auto;padding:14px 14px 48px;}
   .hidden{display:none!important;}
 
-  /* top bar */
-  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
   .brand{display:flex;align-items:center;gap:10px;}
   .brand .dot{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb089,#F26322 70%);display:flex;align-items:center;justify-content:center;font-size:17px;}
   .brand .t1{font-weight:800;color:var(--orange);font-size:18px;line-height:1;}
   .brand .t2{font-size:12px;color:var(--muted);margin-top:3px;}
   .logout{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-size:13px;color:#444;font-family:inherit;cursor:pointer;}
 
-  .backlink{text-align:center;color:#3a3f47;font-size:15px;padding:12px;background:#fff;border-radius:12px;margin-bottom:12px;font-weight:500;cursor:pointer;}
-
   /* login */
-  .login-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-top:30px;}
+  .login-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:30px auto;max-width:360px;}
   .login-card h2{margin:0 0 16px;color:var(--orange);font-size:20px;text-align:center;}
   .fld{margin-bottom:12px;}
   .fld label{display:block;font-size:13px;color:#555;margin-bottom:5px;font-weight:600;}
   .fld input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;}
-  .fld input:focus{outline:none;border-color:var(--orange);}
 
-  /* shop list */
-  .shopitem{background:#fff;border-radius:12px;padding:15px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
-  .shopitem:active{background:#fafafa;}
-  .shopitem .sn{font-weight:700;font-size:15px;}
-  .shopitem .ss{font-size:12px;color:var(--muted);margin-top:3px;}
-  .badge{background:var(--pink);color:var(--orange-dark);font-weight:800;border-radius:999px;padding:6px 13px;font-size:15px;white-space:nowrap;}
-  .near{display:inline-block;font-size:11px;font-weight:600;color:#1E8E3E;background:#e7f4ea;border-radius:6px;padding:1px 7px;margin-left:6px;}
-
-  /* location banner (ยืนยันตำแหน่งแบบแผนที่) */
-  .locbar{display:flex;align-items:center;gap:11px;background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
-  .locbar .lb-ic{width:36px;height:36px;border-radius:50%;flex:0 0 36px;display:flex;align-items:center;justify-content:center;font-size:19px;background:#eef3ff;}
-  .locbar .lb-tx{flex:1;line-height:1.3;}
-  .locbar .lb-tx b{display:block;font-weight:700;font-size:14px;color:var(--ink);}
-  .locbar .lb-tx span{display:block;color:var(--muted);font-size:12px;margin-top:2px;}
-  .locbar .lb-btn{border:none;background:var(--orange);color:#fff;border-radius:10px;padding:10px 15px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
-  .locbar .lb-btn:active{background:var(--orange-dark);transform:scale(.96);}
-  .locbar.ok .lb-ic{background:#e7f4ea;}
-  .locbar.warn .lb-ic{background:var(--pink);}
-  .spin{display:inline-block;width:17px;height:17px;border:2px solid #cdd7ee;border-top-color:var(--orange);border-radius:50%;animation:sp .8s linear infinite;}
-  @keyframes sp{to{transform:rotate(360deg)}}
-
-  /* receive: shop + BIG total */
-  .shopcard{background:var(--card);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
-  .shopcard .name{font-weight:700;font-size:15px;margin-bottom:12px;}
-  .totalbox{display:flex;align-items:baseline;justify-content:center;gap:10px;background:var(--pink);border-radius:14px;padding:14px;}
-  .totalbox .num{font-size:52px;font-weight:800;color:var(--orange);line-height:1;}
-  .totalbox .unit{font-size:18px;font-weight:600;color:var(--orange-dark);}
-
-  .photo{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 6px rgba(242,99,34,.3);}
-  .photo:active{background:var(--orange-dark);}
-  .photo.has{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
-  #photoPreview{width:100%;border-radius:12px;margin-bottom:12px;display:none;}
-
-  .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
-  .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
-  .counter .ctrl{display:flex;align-items:center;gap:10px;}
-  .btn-step{width:52px;height:52px;border-radius:12px;border:none;font-size:28px;font-weight:700;font-family:inherit;color:#fff;background:var(--orange);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
-  .btn-step.minus{background:#fff;color:var(--orange);border:2px solid var(--orange);}
-  .btn-step:active{transform:scale(.94);}
-  .counter .cval{font-size:38px;font-weight:800;min-width:70px;text-align:center;}
-  .counter .cunit{font-size:16px;font-weight:600;color:#555;min-width:28px;}
-
-  .receive{width:100%;background:var(--green);color:#fff;border:none;border-radius:12px;padding:18px;font-size:19px;font-weight:800;font-family:inherit;margin:6px 0 18px;cursor:pointer;box-shadow:0 2px 8px rgba(30,142,62,.3);}
-  .receive:active{background:var(--green-dark);}
-  .receive:disabled{opacity:.6;}
-
-  /* collapsible list */
-  .disclosure{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;}
-  .disc-head{width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;font-family:inherit;padding:16px;cursor:pointer;color:#3a3f47;}
-  .disc-head .dh-left{font-size:15px;font-weight:600;}
-  .disc-head .count-chip{font-size:12px;color:var(--muted);margin-left:6px;}
-  .chev{transition:transform .22s;font-size:14px;color:var(--muted);}
-  .disclosure.open .chev{transform:rotate(180deg);}
-  .disc-body{display:none;border-top:1px solid var(--line);}
-  .disclosure.open .disc-body{display:block;}
-  .row{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line);}
-  .row:last-child{border-bottom:none;}
-  .row .rn{font-weight:700;font-size:14px;}
-  .row .tag{display:inline-block;font-size:11px;font-weight:600;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:middle;}
-  .tag.d{background:#F26322;} .tag.m{background:#8a5cf6;}
-  .row .rsub{font-size:12px;color:var(--muted);margin-top:3px;}
-  .row .rqty{font-size:22px;font-weight:800;min-width:44px;text-align:right;}
-
-  /* generic */
-  .btn{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:15px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;}
+  .controls{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .datewrap{position:relative;display:inline-block;}
+  .datewrap #dShow{padding:10px 34px 10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;width:160px;background:#fff;cursor:pointer;color:var(--ink);}
+  .datewrap .cal{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:15px;}
+  /* input วันที่ตัวจริง วางทับกล่องแบบโปร่งใส (ไม่ซ่อนออกนอกจอ) เพื่อให้ปฏิทินยึดตำแหน่งถูก */
+  .datewrap{cursor:pointer;}
+  .datewrap #dPick{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:2;}
+  /* ซ่อนไอคอนปฏิทินในตัวของ input (กันซ้อนกับ 📅 ที่วางเอง) */
+  .datewrap #dPick::-webkit-calendar-picker-indicator{opacity:0;cursor:pointer;}
+  .btn{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
   .btn:active{background:var(--orange-dark);}
-  .state{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px;}
-  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:99;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;}
-  .toast.show{opacity:.95;}
-  .toast.err{background:#b3261e;}
+  .btn.ghost{background:#fff;color:#333;border:1px solid var(--line);}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
+  .kpi{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  .kpi .lbl{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .kpi .val{font-size:26px;font-weight:800;color:var(--orange);}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:3px;}
+  .kpi.diff .val.neg{color:var(--red);} .kpi.diff .val.pos{color:var(--green);}
+
+  h3{margin:18px 0 8px;font-size:15px;}
+  .tablewrap{background:var(--card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px;}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th{background:#faf7f5;color:#555;font-weight:700;font-size:12px;position:sticky;top:0;}
+  td.num,th.num{text-align:right;}
+  tr.rrow{cursor:pointer;} tr.rrow:hover{background:#fafafa;}
+  .diffpos{color:var(--green);font-weight:700;} .diffneg{color:var(--red);font-weight:700;}
+  .far{color:var(--red);font-weight:700;}
+  .pill{display:inline-block;font-size:11px;font-weight:600;border-radius:6px;padding:1px 7px;}
+  .pill.m{background:#efe8ff;color:#6b3fd1;} .pill.d{background:var(--pink);color:var(--orange-dark);}
+  .subrow td{background:#fbfbfb;padding:0;border-bottom:1px solid var(--line);}
+  .subtable{width:100%;border-collapse:collapse;}
+  .subtable td{padding:7px 12px;font-size:12px;border-bottom:1px dashed #eee;white-space:nowrap;}
+  .linkbtn{background:none;border:none;color:var(--orange);font-family:inherit;cursor:pointer;font-size:13px;text-decoration:underline;padding:0;}
+  .state{text-align:center;color:var(--muted);padding:24px;font-size:14px;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:99;opacity:0;transition:opacity .2s;}
+  .toast.show{opacity:.95;} .toast.err{background:#b3261e;}
 </style>
 </head>
 <body>
@@ -121,72 +84,53 @@
   <div class="topbar">
     <div class="brand">
       <div class="dot">🍩</div>
-      <div>
-        <div class="t1">รับโดนัท 🍩 กลับ</div>
-        <div class="t2" id="whoami">—</div>
-      </div>
+      <div><div class="t1">รายงานรับ Waste</div><div class="t2" id="whoami">—</div></div>
     </div>
     <button class="logout hidden" id="btnLogout">log out</button>
   </div>
 
-  <!-- ===== LOGIN ===== -->
+  <!-- LOGIN -->
   <div id="screenLogin" class="hidden">
     <div class="login-card">
       <h2>🍩 เข้าสู่ระบบ</h2>
       <div class="fld"><label>Username</label><input id="inUser" autocomplete="username"></div>
       <div class="fld"><label>Password</label><input id="inPass" type="password" autocomplete="current-password"></div>
-      <button class="btn" id="btnLogin">เข้าสู่ระบบ</button>
+      <button class="btn" id="btnLogin" style="width:100%">เข้าสู่ระบบ</button>
     </div>
   </div>
 
-  <!-- ===== SHOP LIST ===== -->
-  <div id="screenShops" class="hidden">
-    <div id="locBar"></div>
-    <div class="state" id="shopState">กำลังโหลดรายการร้าน…</div>
-    <div id="shopList"></div>
-  </div>
-
-  <!-- ===== RECEIVE ===== -->
-  <div id="screenReceive" class="hidden">
-    <div class="backlink" id="btnBack">← เลือกร้านอื่น</div>
-
-    <div class="shopcard">
-      <div class="name" id="rcName">—</div>
-      <div class="totalbox"><span class="num" id="grandTotal">0</span><span class="unit">ชิ้น</span></div>
-    </div>
-
-    <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
-    <input id="photoInput" type="file" accept="image/*" capture="environment" class="hidden">
-    <img id="photoPreview" alt="รูปที่รับ">
-
-    <div class="counter">
-      <div class="clabel">โดนัท</div>
-      <div class="ctrl">
-        <button class="btn-step minus" data-k="donut" data-d="-1">−</button>
-        <div class="cval" id="donutVal">0</div>
-        <button class="btn-step" data-k="donut" data-d="1">+</button>
+  <!-- REPORT -->
+  <div id="screenReport" class="hidden">
+    <div class="controls">
+      <div class="datewrap" id="dateBox">
+        <input type="text" id="dShow" readonly placeholder="วว/ดด/ปปปป">
+        <span class="cal">📅</span>
+        <input type="date" id="dPick">
       </div>
-      <div class="cunit">ชิ้น</div>
+      <button class="btn" id="btnGo">ดูรายงาน</button>
+      <button class="btn ghost" id="btnXlsx">⬇ Excel</button>
     </div>
 
-    <div class="counter">
-      <div class="clabel">มันช์กิ้น</div>
-      <div class="ctrl">
-        <button class="btn-step minus" data-k="munch" data-d="-1">−</button>
-        <div class="cval" id="munchVal">0</div>
-        <button class="btn-step" data-k="munch" data-d="1">+</button>
-      </div>
-      <div class="cunit">ชิ้น</div>
+    <div class="kpis" id="kpis"></div>
+
+    <h3>รับแล้ว <span class="muted" id="cRecv"></span></h3>
+    <div class="tablewrap">
+      <table id="tRecv">
+        <thead><tr>
+          <th>ร้าน</th><th>คนขับ</th>
+          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">รวมรับ</th>
+          <th class="num">คาด</th><th class="num">diff</th><th>ระยะ GPS</th><th>รูป</th>
+        </tr></thead>
+        <tbody id="bRecv"><tr><td colspan="9" class="state">—</td></tr></tbody>
+      </table>
     </div>
 
-    <button class="receive" id="btnReceive">✓ รับของ</button>
-
-    <div class="disclosure" id="disc">
-      <button class="disc-head" id="discHead">
-        <span class="dh-left">ดูรายการโดนัททั้งหมด<span class="count-chip" id="discCount"></span></span>
-        <span class="chev">▼</span>
-      </button>
-      <div class="disc-body" id="discBody"></div>
+    <h3>ค้างรับ <span class="muted" id="cPend"></span></h3>
+    <div class="tablewrap">
+      <table id="tPend">
+        <thead><tr><th>ร้าน</th><th class="num">ค้าง (ชิ้น)</th><th class="num">รายการ</th></tr></thead>
+        <tbody id="bPend"><tr><td colspan="3" class="state">—</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -197,303 +141,157 @@
 "use strict";
 const API_BASE = "https://kitchen_checker.mobile1234.site";
 const TOKEN_KEY = "ks_token";
-
-// ---- state ----
 let token = localStorage.getItem(TOKEN_KEY) || "";
-let gps = null;                 // {lat,lng}
-let curShop = null;             // {shop_code, shop_name}
-let items = [];                 // ราย SKU ของร้านปัจจุบัน
-let vals = { donut: 0, munch: 0 };
-let photoDataUrl = null;
+let lastData = null;
 
-// ---- helpers ----
 const $ = id => document.getElementById(id);
-function show(screen){
-  ["screenLogin","screenShops","screenReceive"].forEach(s => $(s).classList.add("hidden"));
-  $(screen).classList.remove("hidden");
-}
-function toast(msg, err){
-  const t = $("toast");
-  t.textContent = msg;
-  t.className = "toast show" + (err ? " err" : "");
-  setTimeout(() => t.className = "toast", 2200);
-}
-function isMunch(code){ return !!code && String(code).trim().toUpperCase().startsWith("DPF23"); }
+function show(s){ ["screenLogin","screenReport"].forEach(x=>$(x).classList.add("hidden")); $(s).classList.remove("hidden"); }
+function toast(m,err){ const t=$("toast"); t.textContent=m; t.className="toast show"+(err?" err":""); setTimeout(()=>t.className="toast",2400); }
+const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 
 async function api(path, opts){
   opts = opts || {};
-  opts.headers = Object.assign({ "Content-Type": "application/json" },
-                               opts.headers || {},
-                               token ? { Authorization: "Bearer " + token } : {});
+  opts.headers = Object.assign({ "Content-Type":"application/json" }, opts.headers||{},
+                               token ? { Authorization:"Bearer "+token } : {});
   const res = await fetch(API_BASE + path, opts);
   if (res.status === 401){ doLogout(); throw new Error("หมดเวลา เข้าสู่ระบบใหม่"); }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || ("error " + res.status));
+  if (opts.raw) return res;
+  const data = await res.json().catch(()=>({}));
+  if (!res.ok) throw new Error(data.detail || ("error "+res.status));
   return data;
 }
 
 // ---- auth ----
 async function doLogin(){
-  const u = $("inUser").value.trim(), p = $("inPass").value;
-  if (!u || !p) return toast("กรอก username / password", true);
-  $("btnLogin").disabled = true;
+  const u=$("inUser").value.trim(), p=$("inPass").value;
+  if(!u||!p) return toast("กรอก username / password", true);
+  $("btnLogin").disabled=true;
   try{
-    const r = await api("/api/login", { method:"POST", body: JSON.stringify({ username:u, password:p }) });
-    token = r.token;
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem("ks_user", JSON.stringify(r.user || {}));
+    const r = await api("/api/login",{method:"POST",body:JSON.stringify({username:u,password:p})});
+    token=r.token; localStorage.setItem(TOKEN_KEY,token);
+    localStorage.setItem("ks_user", JSON.stringify(r.user||{}));
     boot();
-  }catch(e){ toast(e.message, true); }
-  finally{ $("btnLogin").disabled = false; }
+  }catch(e){ toast(e.message,true); } finally{ $("btnLogin").disabled=false; }
 }
-function doLogout(){
-  token = ""; localStorage.removeItem(TOKEN_KEY);
-  $("btnLogout").classList.add("hidden");
-  $("whoami").textContent = "—";
-  show("screenLogin");
-}
+function doLogout(){ token=""; localStorage.removeItem(TOKEN_KEY); $("btnLogout").classList.add("hidden"); $("whoami").textContent="—"; show("screenLogin"); }
 
-// ---- gps + location confirm (แบบแผนที่) ----
-function getGps(){
-  return new Promise(resolve => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude,
-                       acc: Math.round(pos.coords.accuracy || 0) }),
-      () => resolve(null),
-      { enableHighAccuracy:true, timeout:10000, maximumAge:10000 }
-    );
+// ---- load report ----
+async function load(){
+  const d = $("dPick").value;
+  $("bRecv").innerHTML = '<tr><td colspan="9" class="state">กำลังโหลด…</td></tr>';
+  $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
+  try{
+    const data = await api("/api/waste-return/report" + (d?`?day=${d}`:""));
+    lastData = data;
+    renderKpis(data.totals);
+    renderReceived(data.received);
+    renderPending(data.pending);
+  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="9" class="state">${esc(e.message)}</td></tr>`; }
+}
+function renderKpis(t){
+  const diffCls = t.diff<0?"neg":(t.diff>0?"pos":"");
+  const diffTxt = (t.diff>0?"+":"")+t.diff;
+  $("kpis").innerHTML = `
+    <div class="kpi"><div class="lbl">ร้านที่รับแล้ว</div><div class="val">${t.shops_received}</div><div class="sub">ค้าง ${t.shops_pending} ร้าน</div></div>
+    <div class="kpi"><div class="lbl">รวมรับจริง</div><div class="val">${t.total_recv}</div><div class="sub">โดนัท ${t.donut_recv} · มันช์กิ้น ${t.munch_recv}</div></div>
+    <div class="kpi"><div class="lbl">ยอดคาด (คีย์ไว้)</div><div class="val">${t.expected_total}</div></div>
+    <div class="kpi diff"><div class="lbl">ส่วนต่าง (รับ − คาด)</div><div class="val ${diffCls}">${diffTxt}</div></div>
+    <div class="kpi"><div class="lbl">ยอดค้างรับ</div><div class="val">${t.pending_qty}</div><div class="sub">${t.shops_pending} ร้าน</div></div>`;
+}
+function renderReceived(rows){
+  $("cRecv").textContent = `(${rows.length})`;
+  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="9" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
+  const b=$("bRecv"); b.innerHTML="";
+  rows.forEach(r=>{
+    const diffCls = r.diff<0?"diffneg":(r.diff>0?"diffpos":"");
+    const diffTxt = r.diff===0?"0":((r.diff>0?"+":"")+r.diff);
+    const dist = r.dist_m==null ? "—" : `<span class="${r.far?"far":""}">${r.far?"⚠ ":""}${r.dist_m>=1000?(r.dist_m/1000).toFixed(1)+" กม.":r.dist_m+" ม."}</span>`;
+    const ph = r.has_photo ? `<button class="linkbtn" onclick="viewPhoto(${r.return_id})">📷 ดู</button>` : "—";
+    const tr=document.createElement("tr");
+    tr.className="rrow"; tr.dataset.id=r.return_id;
+    tr.innerHTML = `<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
+      <td>${esc(r.driver||"—")}</td>
+      <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${r.total_recv}</td>
+      <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
+      <td>${dist}</td><td>${ph}</td>`;
+    tr.onclick = ev => { if(ev.target.closest(".linkbtn")) return; toggleDetail(tr, r.return_id); };
+    b.appendChild(tr);
+  });
+}
+async function toggleDetail(tr, rid){
+  const nx = tr.nextElementSibling;
+  if(nx && nx.classList.contains("subrow")){ nx.remove(); return; }
+  const sub=document.createElement("tr"); sub.className="subrow";
+  sub.innerHTML='<td colspan="9" class="state">กำลังโหลดราย SKU…</td>';
+  tr.after(sub);
+  try{
+    const items = await api(`/api/waste-return/report/detail?return_id=${rid}`);
+    const rowsHtml = items.map(it=>{
+      const tag = it.is_munch?'<span class="pill m">มันช์กิ้น</span>':'<span class="pill d">โดนัท</span>';
+      return `<tr><td>${esc(it.item_name||it.item_code)} ${tag}</td><td class="muted">${esc(it.item_code)}</td>
+              <td class="num">คาด ${it.expected_qty}</td><td class="num">รับ ${it.recv_qty}</td></tr>`;
+    }).join("");
+    sub.innerHTML = `<td colspan="9"><table class="subtable">${rowsHtml}</table></td>`;
+  }catch(e){ sub.innerHTML=`<td colspan="9" class="state">${esc(e.message)}</td>`; }
+}
+function renderPending(rows){
+  $("cPend").textContent = `(${rows.length})`;
+  if(!rows.length){ $("bPend").innerHTML='<tr><td colspan="3" class="state">รับครบแล้ว 🎉</td></tr>'; return; }
+  const b=$("bPend"); b.innerHTML="";
+  rows.forEach(r=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
+      <td class="num">${r.pending_qty}</td><td class="num">${r.line_count||0}</td>`;
+    b.appendChild(tr);
   });
 }
 
-// สถานะสิทธิ์: "granted" | "prompt" | "denied" | "unknown"
-async function locPermission(){
+// ---- photo (ต้องแนบ token → fetch เป็น blob แล้วเปิด) ----
+async function viewPhoto(rid){
   try{
-    if (!navigator.permissions || !navigator.permissions.query) return "unknown";
-    const s = await navigator.permissions.query({ name: "geolocation" });
-    return s.state;
-  }catch(e){ return "unknown"; }
+    const res = await api(`/api/waste-return/photo?return_id=${rid}`, {raw:true});
+    if(!res.ok) throw new Error("ไม่มีรูป");
+    const url = URL.createObjectURL(await res.blob());
+    window.open(url, "_blank");
+  }catch(e){ toast(e.message,true); }
 }
 
-function renderLocBar(state){
-  const bar = $("locBar");
-  const set = (cls, ic, title, sub, btnLabel) => {
-    bar.className = "locbar " + cls;
-    bar.innerHTML = `<div class="lb-ic">${ic}</div>
-      <div class="lb-tx"><b>${title}</b><span>${sub}</span></div>` +
-      (btnLabel ? `<button class="lb-btn" id="lbBtn">${btnLabel}</button>` : "");
-    if (btnLabel) $("lbBtn").onclick = requestLocation;
-  };
-  if (state === "locating")
-    set("", '<span class="spin"></span>', "กำลังหาตำแหน่ง…", "กำลังยืนยันตำแหน่งอุปกรณ์ แป๊บนึง", "");
-  else if (state === "ok")
-    set("ok", "📍", "ยืนยันตำแหน่งแล้ว", `เรียงร้านตามระยะจากคุณ · ความแม่น ~${gps.acc} ม.`, "รีเฟรช");
-  else if (state === "denied")
-    set("warn", "⚠️", "ยังไม่ได้อนุญาตให้ใช้ตำแหน่ง", "แสดงทุกร้าน (ไม่เรียงตามระยะ) — เปิดสิทธิ์ตำแหน่งในเบราว์เซอร์แล้วลองใหม่", "ลองใหม่");
-  else // prompt / unknown / หาไม่เจอ
-    set("warn", "📍", "ยืนยันตำแหน่งของคุณ", "เพื่อเรียงร้านที่อยู่ใกล้คุณขึ้นก่อน", "ยืนยันตำแหน่ง");
+// ---- export Excel ----
+function exportXlsx(){
+  if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
+  const d = $("dPick").value || lastData.date;
+  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รวมรับ","คาด","diff","ระยะ(ม.)","ไกลเกิน","มีรูป"]];
+  lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
+    r.donut_recv, r.munch_recv, r.total_recv, r.expected_total, r.diff,
+    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", r.has_photo?"มี":""]));
+  const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
+  lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(recv), "รับแล้ว");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pend), "ค้างรับ");
+  XLSX.writeFile(wb, `waste_report_${d}.xlsx`);
 }
 
-async function requestLocation(){
-  renderLocBar("locating");
-  const g = await getGps();
-  if (g){
-    gps = g;
-    renderLocBar("ok");
-    fetchAndRenderShops();                     // ได้พิกัดแล้ว re-sort ตามระยะ
-  } else {
-    const st = await locPermission();
-    renderLocBar(st === "denied" ? "denied" : "prompt");
-  }
-}
+// ---- wire ----
+function fmtTH(iso){ if(!iso) return ""; const p=iso.split("-"); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:iso; }
+function syncShow(){ $("dShow").value = fmtTH($("dPick").value); }
 
-// ---- shop list ----
-async function loadShops(){
-  show("screenShops");
-  $("shopList").innerHTML = "";
-  $("shopState").textContent = "กำลังโหลดรายการร้าน…";
-  await fetchAndRenderShops();                 // แสดงทันทีด้วยพิกัดที่มีอยู่ (หรือ /shops)
-  const st = await locPermission();
-  if (st === "granted"){                        // เคยอนุญาตแล้ว → หาตำแหน่งเงียบ ๆ
-    renderLocBar("locating");
-    const g = await getGps();
-    if (g){ gps = g; renderLocBar("ok"); fetchAndRenderShops(); }
-    else   { renderLocBar("prompt"); }
-  } else {
-    renderLocBar(st);                           // prompt / denied / unknown → ให้แตะยืนยันเอง
-  }
-}
-async function fetchAndRenderShops(){
-  try{
-    let rows;
-    if (gps) {
-      rows = await api(`/api/waste-return/nearby?lat=${gps.lat}&lng=${gps.lng}`);
-      if (!rows.length) rows = await api("/api/waste-return/shops"); // fallback ถ้ายังไม่มีพิกัดร้าน
-    } else {
-      rows = await api("/api/waste-return/shops");
-    }
-    renderShops(rows);
-  }catch(e){ $("shopState").textContent = "โหลดไม่สำเร็จ: " + e.message; }
-}
-function renderShops(rows){
-  if (!rows.length){ $("shopState").textContent = "ไม่มีร้านที่ต้องรับวันนี้ 🎉"; return; }
-  $("shopState").textContent = `มี ${rows.length} ร้านที่ต้องรับ`;
-  const box = $("shopList");
-  rows.forEach(r => {
-    const name = r.shop_name || r.shop_code;
-    const dist = (r.distance_m != null)
-      ? `<span class="near">${r.within_radius ? "อยู่ที่ร้าน" : (r.distance_m >= 1000 ? (r.distance_m/1000).toFixed(1)+" กม." : r.distance_m+" ม.")}</span>`
-      : "";
-    const el = document.createElement("div");
-    el.className = "shopitem";
-    el.innerHTML = `<div><div class="sn">${name}${dist}</div><div class="ss">${r.shop_code} · ${r.line_count||0} รายการ</div></div>
-                    <div class="badge">${r.pending_qty} ชิ้น</div>`;
-    el.onclick = () => openReceive(r);
-    box.appendChild(el);
-  });
-}
-
-// ---- receive ----
-async function openReceive(shop){
-  curShop = shop;
-  resetPhotoBtn();
-  $("photoInput").value = "";
-  $("rcName").textContent = (shop.shop_name || "") + " · " + shop.shop_code;
-  show("screenReceive");
-  $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
-  try{
-    items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
-    vals = { donut: 0, munch: 0 };
-    items.forEach(it => {
-      // ใช้ is_munch จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code (เผื่อ backend ยังไม่ deploy/restart)
-      it._munch = (it.is_munch === true || it.is_munch === false) ? it.is_munch : isMunch(it.item_code);
-      if (it._munch) vals.munch += (it.expected_qty||0);
-      else vals.donut += (it.expected_qty||0);
-    });
-    renderDetail();
-    renderCounters();
-  }catch(e){ $("discBody").innerHTML = `<div class="state">โหลดไม่สำเร็จ: ${e.message}</div>`; }
-}
-function renderCounters(){
-  $("donutVal").textContent = vals.donut;
-  $("munchVal").textContent = vals.munch;
-  $("grandTotal").textContent = vals.donut + vals.munch;
-}
-function renderDetail(){
-  $("discCount").textContent = `${items.length} รายการ`;
-  const body = $("discBody");
-  body.innerHTML = "";
-  items.forEach(it => {
-    const tag = (it._munch ?? isMunch(it.item_code)) ? '<span class="tag m">มันช์กิ้น</span>' : '<span class="tag d">โดนัท</span>';
-    const el = document.createElement("div");
-    el.className = "row";
-    el.innerHTML = `<div><div class="rn">${it.item_name || it.item_code}${tag}</div>
-                    <div class="rsub">${it.item_code} · waste ${it.waste_date}</div></div>
-                    <div class="rqty">${it.expected_qty}</div>`;
-    body.appendChild(el);
-  });
-}
-
-async function doReceive(){
-  if (!items.length) return toast("ไม่มีรายการรับ", true);
-  if (!photoDataUrl && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
-  $("btnReceive").disabled = true;
-  try{
-    const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
-    if (fresh) gps = fresh;
-    const payload = {
-      shop_code: curShop.shop_code,
-      lat: gps ? gps.lat : null,
-      lng: gps ? gps.lng : null,
-      accuracy_m: gps ? gps.acc : null,
-      photo_b64: photoDataUrl,
-      donut_recv: vals.donut,
-      munch_recv: vals.munch,
-      items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
-    };
-    const r = await api("/api/waste-return/receive", { method:"POST", body: JSON.stringify(payload) });
-    let msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
-    if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
-    toast(msg);
-    loadShops();
-  }catch(e){ toast(e.message, true); }
-  finally{ $("btnReceive").disabled = false; }
-}
-
-// ---- photo: ย่อ + ปั๊ก location ลงรูป (กันพัง: ไม่หน่วงรอ GPS, มี error handler) ----
-function resetPhotoBtn(){
-  photoDataUrl = null;
-  $("photoPreview").style.display = "none";
-  $("btnPhoto").className = "photo";
-  $("btnPhoto").textContent = "📷 ถ่ายรูปโดนัทที่รับ";
-}
-function handlePhoto(file){
-  $("btnPhoto").textContent = "กำลังประมวลผลรูป…";
-  // ถ้ายังไม่มีพิกัด ลองดึงใหม่เบื้องหลัง (ไม่หน่วงการแสดงรูป) ไว้ใช้ตอนกดรับของ
-  if (!gps) getGps().then(g => { if (g) gps = g; });
-
-  const reader = new FileReader();
-  reader.onerror = () => { resetPhotoBtn(); toast("อ่านไฟล์รูปไม่สำเร็จ ลองใหม่", true); };
-  reader.onload = e => {
-    const img = new Image();
-    img.onerror = () => { resetPhotoBtn(); toast("เปิดรูปไม่สำเร็จ (ไฟล์อาจไม่รองรับ เช่น HEIC) ลองถ่ายใหม่", true); };
-    img.onload = () => {
-      try{
-        const MAX = 1280;
-        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-        if (!w || !h){ resetPhotoBtn(); toast("รูปเสียหาย ลองใหม่", true); return; }
-        if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
-        else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
-        const cv = document.createElement("canvas");
-        cv.width = w; cv.height = h;
-        const ctx = cv.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        // แถบข้อมูล 3 บรรทัดล่างรูป
-        const lines = [
-          new Date().toLocaleString("th-TH"),
-          "สาขา " + (curShop.shop_name ? (curShop.shop_name + " · ") : "") + curShop.shop_code,
-          gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
-        ];
-        const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
-        const barH = lines.length*(fs+p)+p;
-        ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
-        ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
-        lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
-        photoDataUrl = cv.toDataURL("image/jpeg", 0.7);
-        const pv = $("photoPreview");
-        pv.src = photoDataUrl; pv.style.display = "block";
-        const kb = Math.round(photoDataUrl.length*0.75/1024);
-        $("btnPhoto").className = "photo has";
-        $("btnPhoto").textContent = `✓ ถ่ายรูปแล้ว (~${kb} KB) — แตะเพื่อถ่ายใหม่`;
-      }catch(err){ resetPhotoBtn(); toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-// ---- wire up ----
 $("btnLogin").onclick = doLogin;
-$("inPass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("inPass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
 $("btnLogout").onclick = doLogout;
-$("btnBack").onclick = loadShops;
-$("btnReceive").onclick = doReceive;
-$("btnPhoto").onclick = () => $("photoInput").click();
-$("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handlePhoto(f); });
-$("discHead").onclick = () => $("disc").classList.toggle("open");
-document.querySelectorAll(".btn-step").forEach(b => b.onclick = () => {
-  const k = b.dataset.k, d = parseInt(b.dataset.d, 10);
-  vals[k] = Math.max(0, vals[k] + d);
-  renderCounters();
-});
+$("btnGo").onclick = load;
+$("btnXlsx").onclick = exportXlsx;
+$("dateBox").onclick = () => { try{ $("dPick").showPicker(); }catch(e){ $("dPick").focus(); } };
+$("dPick").onchange = () => { syncShow(); load(); };
 
-// ---- boot ----
-async function boot(){
-  if (!token){ show("screenLogin"); return; }
-  try{ const u = JSON.parse(localStorage.getItem("ks_user") || "{}");
-       $("whoami").textContent = u.full_name || u.username || "admin"; }catch(e){}
+function boot(){
+  if(!token){ show("screenLogin"); return; }
+  try{ const u=JSON.parse(localStorage.getItem("ks_user")||"{}"); $("whoami").textContent=u.full_name||u.username||"admin"; }catch(e){}
   $("btnLogout").classList.remove("hidden");
-  loadShops();   // loadShops ดึง GPS สดเองแล้ว
+  const t=new Date(); $("dPick").value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  syncShow();
+  show("screenReport");
+  load();
 }
 boot();
 </script>
