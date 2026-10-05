@@ -76,6 +76,15 @@
   .state{text-align:center;color:var(--muted);padding:24px;font-size:14px;}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:12px 18px;border-radius:10px;font-size:14px;z-index:99;opacity:0;transition:opacity .2s;}
   .toast.show{opacity:.95;} .toast.err{background:#b3261e;}
+
+  /* photo modal */
+  .pmodal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:200;padding:24px;}
+  .pmodal.show{display:flex;}
+  .pmodal .pbox{position:relative;max-width:min(92vw,640px);}
+  .pmodal img{max-width:100%;max-height:86vh;border-radius:10px;display:block;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  .pmodal .pclose{position:absolute;top:-16px;right:-16px;width:42px;height:42px;border-radius:50%;border:none;background:#fff;color:#20242b;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;line-height:1;}
+  .pmodal .pclose:active{transform:scale(.94);}
+  .pmodal .pstate{color:#fff;font-size:15px;text-align:center;}
 </style>
 </head>
 <body>
@@ -135,6 +144,16 @@
   </div>
 
 </div>
+
+<!-- photo modal -->
+<div class="pmodal" id="pmodal">
+  <div class="pbox">
+    <button class="pclose" id="pclose" aria-label="ปิด">✕</button>
+    <div class="pstate" id="pstate">กำลังโหลดรูป…</div>
+    <img id="pimg" alt="รูปหลักฐานการรับ" style="display:none">
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -210,7 +229,7 @@ function renderReceived(rows){
     const tr=document.createElement("tr");
     tr.className="rrow"; tr.dataset.id=r.return_id;
     tr.innerHTML = `<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
-      <td>${esc(r.driver||"—")}</td>
+      <td>${esc(r.driver_name||r.driver||"—")}${r.driver_name?`<div class="muted" style="font-size:11px">${esc(r.driver)}</div>`:""}</td>
       <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${r.total_recv}</td>
       <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
       <td>${dist}</td><td>${ph}</td>`;
@@ -246,14 +265,27 @@ function renderPending(rows){
   });
 }
 
-// ---- photo (ต้องแนบ token → fetch เป็น blob แล้วเปิด) ----
+// ---- photo (ต้องแนบ token → fetch เป็น blob แล้วเปิดใน modal) ----
+let _photoUrl = null;
+function closePhoto(){
+  $("pmodal").classList.remove("show");
+  const img=$("pimg"); img.style.display="none"; img.removeAttribute("src");
+  if(_photoUrl){ URL.revokeObjectURL(_photoUrl); _photoUrl=null; }
+}
 async function viewPhoto(rid){
+  const m=$("pmodal"), img=$("pimg"), st=$("pstate");
+  st.textContent="กำลังโหลดรูป…"; st.style.display="block";
+  img.style.display="none"; img.removeAttribute("src");
+  m.classList.add("show");
   try{
     const res = await api(`/api/waste-return/photo?return_id=${rid}`, {raw:true});
     if(!res.ok) throw new Error("ไม่มีรูป");
-    const url = URL.createObjectURL(await res.blob());
-    window.open(url, "_blank");
-  }catch(e){ toast(e.message,true); }
+    if(_photoUrl) URL.revokeObjectURL(_photoUrl);
+    _photoUrl = URL.createObjectURL(await res.blob());
+    img.onload  = () => { st.style.display="none"; img.style.display="block"; };
+    img.onerror = () => { st.textContent="เปิดรูปไม่สำเร็จ"; };
+    img.src = _photoUrl;
+  }catch(e){ st.textContent = e.message || "โหลดรูปไม่สำเร็จ"; }
 }
 
 // ---- export Excel ----
@@ -283,6 +315,9 @@ $("btnGo").onclick = load;
 $("btnXlsx").onclick = exportXlsx;
 $("dateBox").onclick = () => { try{ $("dPick").showPicker(); }catch(e){ $("dPick").focus(); } };
 $("dPick").onchange = () => { syncShow(); load(); };
+$("pclose").onclick = closePhoto;
+$("pmodal").onclick = e => { if(e.target.id==="pmodal") closePhoto(); };  // คลิกพื้นหลัง = ปิด
+document.addEventListener("keydown", e => { if(e.key==="Escape" && $("pmodal").classList.contains("show")) closePhoto(); });
 
 function boot(){
   if(!token){ show("screenLogin"); return; }
