@@ -216,7 +216,7 @@ function renderKpis(t){
   $("kpis").innerHTML = `
     <div class="kpi"><div class="lbl">ร้านที่รับแล้ว</div><div class="val">${t.shops_received}</div><div class="sub">ค้าง ${t.shops_pending} ร้าน</div></div>
     <div class="kpi"><div class="lbl">รวมรับจริง</div><div class="val">${t.total_recv}</div><div class="sub">โดนัท ${t.donut_recv} · มันช์กิ้น ${t.munch_recv}</div></div>
-    <div class="kpi"><div class="lbl">ยอดคาด (คีย์ไว้)</div><div class="val">${t.expected_total}</div></div>
+    <div class="kpi"><div class="lbl">ยอดที่ต้องรับ</div><div class="val">${t.expected_total}</div></div>
     <div class="kpi diff"><div class="lbl">ส่วนต่าง (รับ − คาด)</div><div class="val ${diffCls}">${diffTxt}</div></div>
     <div class="kpi"><div class="lbl">ยอดค้างรับ</div><div class="val">${t.pending_qty}</div><div class="sub">${t.shops_pending} ร้าน</div></div>`;
 }
