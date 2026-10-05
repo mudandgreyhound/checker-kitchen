@@ -127,8 +127,8 @@
       <table id="tRecv">
         <thead><tr>
           <th>ร้าน</th><th>คนขับ</th>
-          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">รวมรับ</th>
-          <th class="num">คาด</th><th class="num">diff</th><th>ระยะ GPS</th><th>รูป</th>
+          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">รับจริง</th>
+          <th class="num">ที่ต้องรับ</th><th class="num">diff</th><th>ระยะ GPS</th><th>รูป</th>
         </tr></thead>
         <tbody id="bRecv"><tr><td colspan="9" class="state">—</td></tr></tbody>
       </table>
@@ -201,6 +201,9 @@ async function load(){
   $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
   try{
     const data = await api("/api/waste-return/report" + (d?`?day=${d}`:""));
+    // เรียง "รับแล้ว" ตาม diff น้อย→มาก (ติดลบ/รับขาดเยอะสุดอยู่บน) มีผลทั้งตารางและ Excel
+    if(Array.isArray(data.received))
+      data.received.sort((a,b)=> (a.diff - b.diff) || (b.total_recv - a.total_recv));
     lastData = data;
     renderKpis(data.totals);
     renderReceived(data.received);
@@ -292,7 +295,7 @@ async function viewPhoto(rid){
 function exportXlsx(){
   if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
   const d = $("dPick").value || lastData.date;
-  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รวมรับ","คาด","diff","ระยะ(ม.)","ไกลเกิน","มีรูป"]];
+  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","มีรูป"]];
   lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
     r.donut_recv, r.munch_recv, r.total_recv, r.expected_total, r.diff,
     r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", r.has_photo?"มี":""]));
