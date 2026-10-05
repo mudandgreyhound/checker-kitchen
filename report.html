@@ -41,7 +41,11 @@
   .datewrap{position:relative;display:inline-block;}
   .datewrap #dShow{padding:10px 34px 10px 12px;border:1px solid #ddd;border-radius:10px;font-size:15px;font-family:inherit;width:160px;background:#fff;cursor:pointer;color:var(--ink);}
   .datewrap .cal{position:absolute;right:11px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:15px;}
-  .datewrap #dPick{position:absolute;left:-9999px;width:1px;height:1px;opacity:0;}
+  /* input วันที่ตัวจริง วางทับกล่องแบบโปร่งใส (ไม่ซ่อนออกนอกจอ) เพื่อให้ปฏิทินยึดตำแหน่งถูก */
+  .datewrap{cursor:pointer;}
+  .datewrap #dPick{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;cursor:pointer;z-index:2;}
+  /* ซ่อนไอคอนปฏิทินในตัวของ input (กันซ้อนกับ 📅 ที่วางเอง) */
+  .datewrap #dPick::-webkit-calendar-picker-indicator{opacity:0;cursor:pointer;}
   .btn{background:var(--orange);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;}
   .btn:active{background:var(--orange-dark);}
   .btn.ghost{background:#fff;color:#333;border:1px solid var(--line);}
