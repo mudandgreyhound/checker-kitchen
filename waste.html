@@ -43,6 +43,14 @@
   .fld input{width:100%;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;}
   .fld input:focus{outline:none;border-color:var(--orange);}
 
+  /* shop code lookup */
+  .lookup{display:flex;gap:8px;margin-bottom:12px;}
+  .lookup input{flex:1;min-width:0;padding:13px;border:1px solid #ddd;border-radius:10px;font-size:16px;font-family:inherit;background:#fff;}
+  .lookup input:focus{outline:none;border-color:var(--orange);}
+  .lookup button{border:none;background:var(--orange);color:#fff;border-radius:10px;padding:0 18px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;}
+  .lookup button:active{background:var(--orange-dark);transform:scale(.97);}
+  .lookup button:disabled{opacity:.6;}
+
   /* shop list */
   .shopitem{background:#fff;border-radius:12px;padding:15px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;}
   .shopitem:active{background:#fafafa;}
@@ -142,6 +150,12 @@
   <!-- ===== SHOP LIST ===== -->
   <div id="screenShops" class="hidden">
     <div id="locBar"></div>
+
+    <div class="lookup">
+      <input id="shopCodeIn" inputmode="numeric" placeholder="พิมพ์รหัสร้าน เช่น 0919" autocomplete="off">
+      <button id="shopCodeBtn">ดูข้อมูล</button>
+    </div>
+
     <div class="state" id="shopState">กำลังโหลดรายการร้าน…</div>
     <div id="shopList"></div>
   </div>
@@ -205,6 +219,7 @@ let curShop = null;             // {shop_code, shop_name}
 let items = [];                 // ราย SKU ของร้านปัจจุบัน
 let vals = { donut: 0, munch: 0 };
 let photoDataUrl = null;
+let lastRows = [];              // ร้านชุดล่าสุดที่ render ไว้ (ใช้หาชื่อร้านตอนค้นด้วยรหัส)
 
 // ---- helpers ----
 const $ = id => document.getElementById(id);
@@ -336,9 +351,11 @@ async function fetchAndRenderShops(){
   }catch(e){ $("shopState").textContent = "โหลดไม่สำเร็จ: " + e.message; }
 }
 function renderShops(rows){
+  lastRows = rows || [];                        // เก็บไว้ใช้หาชื่อร้านตอนค้นด้วยรหัส
   if (!rows.length){ $("shopState").textContent = "ไม่มีร้านที่ต้องรับวันนี้ 🎉"; return; }
   $("shopState").textContent = `มี ${rows.length} ร้านที่ต้องรับ`;
   const box = $("shopList");
+  box.innerHTML = "";
   rows.forEach(r => {
     const name = r.shop_name || r.shop_code;
     const dist = (r.distance_m != null)
@@ -353,8 +370,25 @@ function renderShops(rows){
   });
 }
 
+// ---- ค้นร้านด้วยรหัส → เปิดหน้ารับของร้านนั้นเลย (ใช้เจาะร้านที่ไม่โผล่ในลิสต์) ----
+async function openByCode(){
+  let code = $("shopCodeIn").value.trim().toUpperCase();
+  if (!code) return toast("กรอกรหัสร้านก่อน", true);
+  if (/^\d{1,3}$/.test(code)) code = code.padStart(4, "0");   // 919 → 0919
+  const btn = $("shopCodeBtn");
+  btn.disabled = true;
+  try{
+    const its = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(code)}`);
+    if (!its.length){ toast(`ร้าน ${code}: ไม่มีรายการ waste วันนี้`, true); return; }
+    const hit = lastRows.find(r => String(r.shop_code).trim().toUpperCase() === code);
+    openReceive({ shop_code: code, shop_name: hit ? hit.shop_name : "" }, its);
+    $("shopCodeIn").value = "";
+  }catch(e){ toast(e.message, true); }
+  finally{ btn.disabled = false; }
+}
+
 // ---- receive ----
-async function openReceive(shop){
+async function openReceive(shop, preItems){
   curShop = shop;
   resetPhotoBtn();
   $("photoInput").value = "";
@@ -362,7 +396,8 @@ async function openReceive(shop){
   show("screenReceive");
   $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
   try{
-    items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
+    // preItems: ชุดรายการที่โหลดมาแล้ว (จาก openByCode) จะได้ไม่ยิงซ้ำ
+    items = preItems || await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
     vals = { donut: 0, munch: 0 };
     items.forEach(it => {
       // ใช้ is_munch จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code (เผื่อ backend ยังไม่ deploy/restart)
@@ -481,6 +516,8 @@ $("btnReceive").onclick = doReceive;
 $("btnPhoto").onclick = () => $("photoInput").click();
 $("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handlePhoto(f); });
 $("discHead").onclick = () => $("disc").classList.toggle("open");
+$("shopCodeBtn").onclick = openByCode;
+$("shopCodeIn").addEventListener("keydown", e => { if (e.key === "Enter") openByCode(); });
 document.querySelectorAll(".btn-step").forEach(b => b.onclick = () => {
   const k = b.dataset.k, d = parseInt(b.dataset.d, 10);
   vals[k] = Math.max(0, vals[k] + d);
