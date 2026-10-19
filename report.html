@@ -128,9 +128,9 @@
         <thead><tr>
           <th>ร้าน</th><th>คนขับ</th>
           <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">รับจริง</th>
-          <th class="num">ที่ต้องรับ</th><th class="num">diff</th><th>ระยะ GPS</th><th>รูป</th>
+          <th class="num">ที่ต้องรับ</th><th class="num">diff</th><th>ระยะ GPS</th><th>เวลารับ</th><th>รูป</th>
         </tr></thead>
-        <tbody id="bRecv"><tr><td colspan="9" class="state">—</td></tr></tbody>
+        <tbody id="bRecv"><tr><td colspan="10" class="state">—</td></tr></tbody>
       </table>
     </div>
 
@@ -167,6 +167,20 @@ const $ = id => document.getElementById(id);
 function show(s){ ["screenLogin","screenReport"].forEach(x=>$(x).classList.add("hidden")); $(s).classList.remove("hidden"); }
 function toast(m,err){ const t=$("toast"); t.textContent=m; t.className="toast show"+(err?" err":""); setTimeout(()=>t.className="toast",2400); }
 const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+// "2026-09-30T14:29:09" / "2026-09-30 14:29:09" → "30/09 14:29"
+function fmtDateTime(s){
+  if(!s) return "—";
+  const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? `${m[3]}/${m[2]} ${m[4]}:${m[5]}` : esc(s);
+}
+// เวอร์ชันเต็มสำหรับ Excel → "30/09/2026 14:29:09"
+function fmtXlsxDateTime(s){
+  if(!s) return "";
+  const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if(m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+  const m2 = String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m2 ? `${m2[3]}/${m2[2]}/${m2[1]} ${m2[4]}:${m2[5]}` : String(s);
+}
 
 async function api(path, opts){
   opts = opts || {};
@@ -197,7 +211,7 @@ function doLogout(){ token=""; localStorage.removeItem(TOKEN_KEY); $("btnLogout"
 // ---- load report ----
 async function load(){
   const d = $("dPick").value;
-  $("bRecv").innerHTML = '<tr><td colspan="9" class="state">กำลังโหลด…</td></tr>';
+  $("bRecv").innerHTML = '<tr><td colspan="10" class="state">กำลังโหลด…</td></tr>';
   $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
   try{
     const data = await api("/api/waste-return/report" + (d?`?day=${d}`:""));
@@ -208,7 +222,7 @@ async function load(){
     renderKpis(data.totals);
     renderReceived(data.received);
     renderPending(data.pending);
-  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="9" class="state">${esc(e.message)}</td></tr>`; }
+  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="10" class="state">${esc(e.message)}</td></tr>`; }
 }
 function renderKpis(t){
   const diffCls = t.diff<0?"neg":(t.diff>0?"pos":"");
@@ -222,7 +236,7 @@ function renderKpis(t){
 }
 function renderReceived(rows){
   $("cRecv").textContent = `(${rows.length})`;
-  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="9" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
+  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="10" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
   const b=$("bRecv"); b.innerHTML="";
   rows.forEach(r=>{
     const diffCls = r.diff<0?"diffneg":(r.diff>0?"diffpos":"");
@@ -235,7 +249,7 @@ function renderReceived(rows){
       <td>${esc(r.driver_name||r.driver||"—")}${r.driver_name?`<div class="muted" style="font-size:11px">${esc(r.driver)}</div>`:""}</td>
       <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${r.total_recv}</td>
       <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
-      <td>${dist}</td><td>${ph}</td>`;
+      <td>${dist}</td><td style="font-size:12px">${fmtDateTime(r.received_at)}</td><td>${ph}</td>`;
     tr.onclick = ev => { if(ev.target.closest(".linkbtn")) return; toggleDetail(tr, r.return_id); };
     b.appendChild(tr);
   });
@@ -244,7 +258,7 @@ async function toggleDetail(tr, rid){
   const nx = tr.nextElementSibling;
   if(nx && nx.classList.contains("subrow")){ nx.remove(); return; }
   const sub=document.createElement("tr"); sub.className="subrow";
-  sub.innerHTML='<td colspan="9" class="state">กำลังโหลดราย SKU…</td>';
+  sub.innerHTML='<td colspan="10" class="state">กำลังโหลดราย SKU…</td>';
   tr.after(sub);
   try{
     const items = await api(`/api/waste-return/report/detail?return_id=${rid}`);
@@ -253,8 +267,8 @@ async function toggleDetail(tr, rid){
       return `<tr><td>${esc(it.item_name||it.item_code)} ${tag}</td><td class="muted">${esc(it.item_code)}</td>
               <td class="num">คาด ${it.expected_qty}</td><td class="num">รับ ${it.recv_qty}</td></tr>`;
     }).join("");
-    sub.innerHTML = `<td colspan="9"><table class="subtable">${rowsHtml}</table></td>`;
-  }catch(e){ sub.innerHTML=`<td colspan="9" class="state">${esc(e.message)}</td>`; }
+    sub.innerHTML = `<td colspan="10"><table class="subtable">${rowsHtml}</table></td>`;
+  }catch(e){ sub.innerHTML=`<td colspan="10" class="state">${esc(e.message)}</td>`; }
 }
 function renderPending(rows){
   $("cPend").textContent = `(${rows.length})`;
@@ -295,10 +309,10 @@ async function viewPhoto(rid){
 function exportXlsx(){
   if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
   const d = $("dPick").value || lastData.date;
-  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","มีรูป"]];
+  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","มีรูป"]];
   lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
     r.donut_recv, r.munch_recv, r.total_recv, r.expected_total, r.diff,
-    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", r.has_photo?"มี":""]));
+    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", fmtXlsxDateTime(r.received_at), r.has_photo?"มี":""]));
   const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
   lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
   const wb = XLSX.utils.book_new();
