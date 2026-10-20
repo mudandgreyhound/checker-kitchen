@@ -78,15 +78,18 @@
   .dbar-val.neg{color:var(--red);} .dbar-val.pos{color:var(--green);}
   .chart-empty{text-align:center;color:var(--muted);font-size:13px;padding:28px 0;}
 
-  /* donut (โดนัท vs มันช์กิ้น) */
-  .mix{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;}
-  .mix svg{flex:0 0 auto;}
-  .mix .mixcenter{font-size:11px;fill:var(--muted);} .mix .mixtotal{font-size:20px;font-weight:800;fill:var(--ink);}
-  .mixlegend{display:flex;flex-direction:column;gap:8px;font-size:13px;}
-  .mixlegend .lg{display:flex;align-items:center;gap:8px;}
-  .mixlegend .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;}
-  .mixlegend b{font-variant-numeric:tabular-nums;}
-  .mixlegend .pct{color:var(--muted);font-size:11px;}
+  /* per-item bars (สัดส่วนที่รับ รายรายการ) */
+  .ibars{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
+  .ibar-row{display:grid;grid-template-columns:128px 1fr 50px;align-items:center;gap:8px;font-size:12px;}
+  .ibar-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
+  .ibar-track{position:relative;height:15px;background:#f3f4f6;border-radius:4px;}
+  .ibar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;min-width:2px;}
+  .ibar-fill.d{background:var(--orange);} .ibar-fill.m{background:#6b3fd1;} .ibar-fill.o{background:#c9ccd3;}
+  .ibar-val{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;}
+  .ibar-val .ibar-pct{color:var(--muted);font-size:10px;font-weight:500;}
+  .mixnote{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap;}
+  .mixnote .lg{display:flex;align-items:center;gap:5px;}
+  .mixnote .sw{width:10px;height:10px;border-radius:3px;}
 
   h3{margin:18px 0 8px;font-size:15px;}
   .tablewrap{background:var(--card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow-x:auto;}
@@ -159,9 +162,13 @@
         <div class="dbars" id="dbars"></div>
       </div>
       <div class="chart-card">
-        <h4>สัดส่วนที่รับ</h4>
-        <div class="chint">โดนัท vs มันช์กิ้น (รวมทั้งวัน)</div>
-        <div class="mix" id="mix"></div>
+        <h4>สัดส่วนที่รับ (รายรายการ)</h4>
+        <div class="mixnote">
+          <span class="lg"><span class="sw" style="background:var(--orange)"></span>โดนัท</span>
+          <span class="lg"><span class="sw" style="background:#6b3fd1"></span>มันช์กิ้น</span>
+          <span id="mixsum"></span>
+        </div>
+        <div class="ibars" id="mix"><div class="chart-empty">—</div></div>
       </div>
     </div>
 
@@ -306,32 +313,63 @@ function renderCharts(data){
     }).join("");
   }
 
-  // (2) โดนัท vs มันช์กิ้น — donut chart
-  const donut = Number(t.donut_recv||0), munch = Number(t.munch_recv||0);
-  const tot = donut + munch;
-  const C_D = "#F26322", C_M = "#6b3fd1";
-  const R = 52, CIRC = 2*Math.PI*R;
-  const pD = tot ? donut/tot : 0, pM = tot ? munch/tot : 0;
-  const segs = tot
-    ? `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${C_D}" stroke-width="18"
-             stroke-dasharray="${(pD*CIRC).toFixed(2)} ${CIRC}" transform="rotate(-90 70 70)"/>
-       <circle cx="70" cy="70" r="${R}" fill="none" stroke="${C_M}" stroke-width="18"
-             stroke-dasharray="${(pM*CIRC).toFixed(2)} ${CIRC}"
-             stroke-dashoffset="${(-pD*CIRC).toFixed(2)}" transform="rotate(-90 70 70)"/>`
-    : `<circle cx="70" cy="70" r="${R}" fill="none" stroke="#eceff3" stroke-width="18"/>`;
-  const pct = n => tot ? Math.round(n/tot*100)+"%" : "—";
-  $("mix").innerHTML = `
-    <svg width="140" height="140" viewBox="0 0 140 140">
-      ${segs}
-      <text class="mixtotal" x="70" y="68" text-anchor="middle">${tot.toLocaleString()}</text>
-      <text class="mixcenter" x="70" y="86" text-anchor="middle">รวม (ชิ้น)</text>
-    </svg>
-    <div class="mixlegend">
-      <div class="lg"><span class="sw" style="background:${C_D}"></span>โดนัท <b>${donut.toLocaleString()}</b> <span class="pct">${pct(donut)}</span></div>
-      <div class="lg"><span class="sw" style="background:${C_M}"></span>มันช์กิ้น <b>${munch.toLocaleString()}</b> <span class="pct">${pct(munch)}</span></div>
-    </div>`;
-
   box.classList.toggle("hidden", !recv.length);
+
+  // (2) สัดส่วนที่รับ รายรายการ — รวม recv_qty ต่อ SKU จาก detail จริง
+  renderMix(recv);
+}
+
+// รวมรายการที่รับจริงต่อ SKU จากทุกใบ (detail endpoint) แล้ววาดแท่งเรียงมาก→น้อย
+async function renderMix(received){
+  const el = $("mix"), sum = $("mixsum");
+  if(sum) sum.textContent = "";
+  if(!received || !received.length){ el.innerHTML='<div class="chart-empty">—</div>'; return; }
+  el.innerHTML = '<div class="chart-empty">กำลังรวมรายการ…</div>';
+  const ids = received.map(r=>r.return_id).filter(x=>x!=null);
+  const guard = token;                        // กันผลเก่าทับถ้าเปลี่ยนวัน/logout ระหว่างโหลด
+  let results;
+  try{
+    results = await Promise.all(ids.map(rid =>
+      api(`/api/waste-return/report/detail?return_id=${rid}`).catch(()=>[])
+    ));
+  }catch(e){ el.innerHTML=`<div class="chart-empty">${esc(e.message)}</div>`; return; }
+  if(token !== guard) return;                  // stale — ทิ้ง
+
+  const agg = new Map();
+  results.forEach(items => (items||[]).forEach(it=>{
+    const q = Number(it.recv_qty)||0;
+    if(q<=0) return;
+    const code = it.item_code || it.item_name || "?";
+    const cur = agg.get(code) || {name: it.item_name||it.item_code||code, qty:0, munch: !!it.is_munch};
+    cur.qty += q; agg.set(code, cur);
+  }));
+  const rows = [...agg.values()].sort((a,b)=> b.qty - a.qty);
+  if(!rows.length){ el.innerHTML='<div class="chart-empty">ไม่มีรายการที่รับ</div>'; return; }
+
+  const total = rows.reduce((s,r)=>s+r.qty,0);
+  const dQty  = rows.filter(r=>!r.munch).reduce((s,r)=>s+r.qty,0);
+  const mQty  = total - dQty;
+  if(sum) sum.textContent = `รวม ${total.toLocaleString()} ชิ้น · โดนัท ${dQty.toLocaleString()} · มันช์กิ้น ${mQty.toLocaleString()}`;
+
+  const TOP = 12;
+  let shown = rows, other = null;
+  if(rows.length > TOP){
+    shown = rows.slice(0, TOP);
+    const rest = rows.slice(TOP);
+    other = {name:`อื่น ๆ (${rest.length} รายการ)`, qty:rest.reduce((s,r)=>s+r.qty,0), munch:null};
+  }
+  const maxQ = shown[0].qty || 1;
+  const bar = r => {
+    const w = (r.qty/maxQ)*100;
+    const cls = r.munch===null ? "o" : (r.munch ? "m" : "d");
+    const pct = total ? Math.round(r.qty/total*100) : 0;
+    return `<div class="ibar-row" title="${esc(r.name)}">
+      <div class="ibar-name">${esc(r.name)}</div>
+      <div class="ibar-track"><div class="ibar-fill ${cls}" style="width:${w}%"></div></div>
+      <div class="ibar-val">${r.qty.toLocaleString()}<div class="ibar-pct">${pct}%</div></div>
+    </div>`;
+  };
+  el.innerHTML = shown.map(bar).join("") + (other ? bar(other) : "");
 }
 
 function renderReceived(rows){
