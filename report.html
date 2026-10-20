@@ -58,6 +58,36 @@
   .kpi .sub{font-size:12px;color:var(--muted);margin-top:3px;}
   .kpi.diff .val.neg{color:var(--red);} .kpi.diff .val.pos{color:var(--green);}
 
+  /* ── charts ── */
+  .charts{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-bottom:16px;}
+  @media(max-width:720px){ .charts{grid-template-columns:1fr;} }
+  .chart-card{background:var(--card);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);min-width:0;}
+  .chart-card h4{margin:0 0 2px;font-size:14px;color:var(--ink);}
+  .chart-card .chint{font-size:11px;color:var(--muted);margin-bottom:12px;}
+
+  /* diverging bar (diff ต่อร้าน) */
+  .dbars{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;}
+  .dbar-row{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:8px;font-size:12px;}
+  .dbar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
+  .dbar-track{position:relative;height:16px;background:#f3f4f6;border-radius:4px;}
+  .dbar-track::before{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:#d6d8dd;}
+  .dbar-fill{position:absolute;top:2px;bottom:2px;border-radius:3px;min-width:2px;}
+  .dbar-fill.neg{right:50%;background:var(--red);}
+  .dbar-fill.pos{left:50%;background:var(--green);}
+  .dbar-val{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+  .dbar-val.neg{color:var(--red);} .dbar-val.pos{color:var(--green);}
+  .chart-empty{text-align:center;color:var(--muted);font-size:13px;padding:28px 0;}
+
+  /* donut (โดนัท vs มันช์กิ้น) */
+  .mix{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;}
+  .mix svg{flex:0 0 auto;}
+  .mix .mixcenter{font-size:11px;fill:var(--muted);} .mix .mixtotal{font-size:20px;font-weight:800;fill:var(--ink);}
+  .mixlegend{display:flex;flex-direction:column;gap:8px;font-size:13px;}
+  .mixlegend .lg{display:flex;align-items:center;gap:8px;}
+  .mixlegend .sw{width:12px;height:12px;border-radius:3px;flex:0 0 auto;}
+  .mixlegend b{font-variant-numeric:tabular-nums;}
+  .mixlegend .pct{color:var(--muted);font-size:11px;}
+
   h3{margin:18px 0 8px;font-size:15px;}
   .tablewrap{background:var(--card);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow-x:auto;}
   table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px;}
@@ -121,6 +151,19 @@
     </div>
 
     <div class="kpis" id="kpis"></div>
+
+    <div class="charts hidden" id="charts">
+      <div class="chart-card">
+        <h4>ส่วนต่างรายร้าน (รับจริง − ที่ต้องรับ)</h4>
+        <div class="chint">🔴 รับขาด · 🟢 รับเกิน — เรียงจากรับขาดมากสุด</div>
+        <div class="dbars" id="dbars"></div>
+      </div>
+      <div class="chart-card">
+        <h4>สัดส่วนที่รับ</h4>
+        <div class="chint">โดนัท vs มันช์กิ้น (รวมทั้งวัน)</div>
+        <div class="mix" id="mix"></div>
+      </div>
+    </div>
 
     <h3>รับแล้ว <span class="muted" id="cRecv"></span></h3>
     <div class="tablewrap">
@@ -220,6 +263,7 @@ async function load(){
       data.received.sort((a,b)=> (a.diff - b.diff) || (b.total_recv - a.total_recv));
     lastData = data;
     renderKpis(data.totals);
+    renderCharts(data);
     renderReceived(data.received);
     renderPending(data.pending);
   }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="10" class="state">${esc(e.message)}</td></tr>`; }
@@ -234,6 +278,62 @@ function renderKpis(t){
     <div class="kpi diff"><div class="lbl">ส่วนต่าง (รับจริง − ยอดที่ต้งอรับ)</div><div class="val ${diffCls}">${diffTxt}</div></div>
     <div class="kpi"><div class="lbl">ยอดค้างรับ</div><div class="val">${t.pending_qty}</div><div class="sub">${t.shops_pending} ร้าน</div></div>`;
 }
+// ---- charts ----
+function renderCharts(data){
+  const box = $("charts");
+  const recv = Array.isArray(data.received) ? data.received : [];
+  const t = data.totals || {};
+
+  // (1) diff ต่อร้าน — เฉพาะร้านที่ diff != 0, เรียงรับขาดมากสุดอยู่บน
+  const diffRows = recv.filter(r => Number(r.diff) !== 0)
+                       .sort((a,b)=> a.diff - b.diff);
+  const maxAbs = diffRows.reduce((m,r)=>Math.max(m, Math.abs(r.diff)), 0) || 1;
+  const db = $("dbars");
+  if(!diffRows.length){
+    db.innerHTML = '<div class="chart-empty">รับครบตามยอดทุกร้าน 🎉<br>(ไม่มีส่วนต่าง)</div>';
+  }else{
+    db.innerHTML = diffRows.map(r=>{
+      const neg = r.diff < 0;
+      const w = (Math.abs(r.diff)/maxAbs)*50;   // % ของครึ่งราง
+      const cls = neg ? "neg" : "pos";
+      const txt = (r.diff>0?"+":"")+r.diff;
+      const nm = esc(r.shop_name || r.shop_code || "");
+      return `<div class="dbar-row" title="${nm}">
+        <div class="dbar-label">${nm}</div>
+        <div class="dbar-track"><div class="dbar-fill ${cls}" style="width:${w}%"></div></div>
+        <div class="dbar-val ${cls}">${txt}</div>
+      </div>`;
+    }).join("");
+  }
+
+  // (2) โดนัท vs มันช์กิ้น — donut chart
+  const donut = Number(t.donut_recv||0), munch = Number(t.munch_recv||0);
+  const tot = donut + munch;
+  const C_D = "#F26322", C_M = "#6b3fd1";
+  const R = 52, CIRC = 2*Math.PI*R;
+  const pD = tot ? donut/tot : 0, pM = tot ? munch/tot : 0;
+  const segs = tot
+    ? `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${C_D}" stroke-width="18"
+             stroke-dasharray="${(pD*CIRC).toFixed(2)} ${CIRC}" transform="rotate(-90 70 70)"/>
+       <circle cx="70" cy="70" r="${R}" fill="none" stroke="${C_M}" stroke-width="18"
+             stroke-dasharray="${(pM*CIRC).toFixed(2)} ${CIRC}"
+             stroke-dashoffset="${(-pD*CIRC).toFixed(2)}" transform="rotate(-90 70 70)"/>`
+    : `<circle cx="70" cy="70" r="${R}" fill="none" stroke="#eceff3" stroke-width="18"/>`;
+  const pct = n => tot ? Math.round(n/tot*100)+"%" : "—";
+  $("mix").innerHTML = `
+    <svg width="140" height="140" viewBox="0 0 140 140">
+      ${segs}
+      <text class="mixtotal" x="70" y="68" text-anchor="middle">${tot.toLocaleString()}</text>
+      <text class="mixcenter" x="70" y="86" text-anchor="middle">รวม (ชิ้น)</text>
+    </svg>
+    <div class="mixlegend">
+      <div class="lg"><span class="sw" style="background:${C_D}"></span>โดนัท <b>${donut.toLocaleString()}</b> <span class="pct">${pct(donut)}</span></div>
+      <div class="lg"><span class="sw" style="background:${C_M}"></span>มันช์กิ้น <b>${munch.toLocaleString()}</b> <span class="pct">${pct(munch)}</span></div>
+    </div>`;
+
+  box.classList.toggle("hidden", !recv.length);
+}
+
 function renderReceived(rows){
   $("cRecv").textContent = `(${rows.length})`;
   if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="10" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
