@@ -81,7 +81,15 @@
   .photo{width:100%;background:var(--orange);color:#fff;border:none;border-radius:12px;padding:16px;font-size:16px;font-weight:700;font-family:inherit;margin-bottom:10px;cursor:pointer;box-shadow:0 2px 6px rgba(242,99,34,.3);}
   .photo:active{background:var(--orange-dark);}
   .photo.has{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
-  #photoPreview{width:100%;border-radius:12px;margin-bottom:12px;display:none;}
+  #photoGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  #photoGrid:empty{display:none;}
+  .thumb{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;background:#eee;}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .thumb .rm{position:absolute;top:3px;right:3px;width:24px;height:24px;border:none;border-radius:50%;
+             background:rgba(0,0,0,.6);color:#fff;font-size:15px;line-height:1;cursor:pointer;
+             display:flex;align-items:center;justify-content:center;}
+  .thumb .idx{position:absolute;left:4px;bottom:3px;background:rgba(0,0,0,.6);color:#fff;
+              font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;}
 
   .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
@@ -169,8 +177,8 @@
     </div>
 
     <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
-    <input id="photoInput" type="file" accept="image/*" capture="environment" class="hidden">
-    <img id="photoPreview" alt="รูปที่รับ">
+    <input id="photoInput" type="file" accept="image/*" capture="environment" multiple class="hidden">
+    <div id="photoGrid"></div>
 
     <div class="counter">
       <div class="clabel">โดนัท</div>
@@ -217,7 +225,8 @@ let gps = null;                 // {lat,lng}
 let curShop = null;             // {shop_code, shop_name}
 let items = [];                 // ราย SKU ของร้านปัจจุบัน
 let vals = { donut: 0, munch: 0 };
-let photoDataUrl = null;
+let photos = [];                // dataURL ของรูปที่ถ่าย (หลายรูปได้)
+const MAX_PHOTOS = 6;
 let lastRows = [];              // ร้านชุดล่าสุดจาก API (ใช้ filter ฝั่ง client)
 
 // ---- helpers ----
@@ -433,7 +442,7 @@ function renderDetail(){
 
 async function doReceive(){
   if (!items.length) return toast("ไม่มีรายการรับ", true);
-  if (!photoDataUrl && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
+  if (!photos.length && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
   $("btnReceive").disabled = true;
   try{
     const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
@@ -443,7 +452,7 @@ async function doReceive(){
       lat: gps ? gps.lat : null,
       lng: gps ? gps.lng : null,
       accuracy_m: gps ? gps.acc : null,
-      photo_b64: photoDataUrl,
+      photos_b64: photos,
       donut_recv: vals.donut,
       munch_recv: vals.munch,
       items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
@@ -459,26 +468,63 @@ async function doReceive(){
 
 // ---- photo: ย่อ + ปั๊ก location ลงรูป (กันพัง: ไม่หน่วงรอ GPS, มี error handler) ----
 function resetPhotoBtn(){
-  photoDataUrl = null;
-  $("photoPreview").style.display = "none";
-  $("btnPhoto").className = "photo";
-  $("btnPhoto").textContent = "📷 ถ่ายรูปโดนัทที่รับ";
+  photos = [];
+  renderPhotos();
 }
-function handlePhoto(file){
-  $("btnPhoto").textContent = "กำลังประมวลผลรูป…";
-  // ถ้ายังไม่มีพิกัด ลองดึงใหม่เบื้องหลัง (ไม่หน่วงการแสดงรูป) ไว้ใช้ตอนกดรับของ
+function renderPhotos(){
+  const grid = $("photoGrid");
+  grid.innerHTML = "";
+  photos.forEach((src, i) => {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = `<img src="${src}" alt="รูป ${i+1}">
+                   <span class="idx">${i+1}</span>
+                   <button class="rm" data-i="${i}" aria-label="ลบรูป">×</button>`;
+    grid.appendChild(d);
+  });
+  grid.querySelectorAll(".rm").forEach(b => b.onclick = () => {
+    photos.splice(parseInt(b.dataset.i, 10), 1);
+    renderPhotos();
+  });
+  const btn = $("btnPhoto");
+  if (photos.length){
+    btn.className = "photo has";
+    btn.textContent = photos.length >= MAX_PHOTOS
+      ? `✓ ${photos.length} รูป (ครบสูงสุดแล้ว)`
+      : `✓ ${photos.length} รูป — แตะเพื่อถ่ายเพิ่ม`;
+  } else {
+    btn.className = "photo";
+    btn.textContent = "📷 ถ่ายรูปโดนัทที่รับ";
+  }
+}
+// รับหลายไฟล์ต่อครั้ง (เลือกจากแกลเลอรี) หรือทีละรูป (ถ่ายจากกล้อง) → ประมวลผลตามลำดับ
+function handlePhotos(files){
+  const list = Array.from(files);
+  const room = MAX_PHOTOS - photos.length;
+  if (room <= 0){ toast(`แนบได้สูงสุด ${MAX_PHOTOS} รูป`, true); return; }
+  if (list.length > room){ toast(`เพิ่มได้อีก ${room} รูป (สูงสุด ${MAX_PHOTOS})`, true); }
+  const take = list.slice(0, room);
+  // ถ้ายังไม่มีพิกัด ลองดึงใหม่เบื้องหลัง ไว้ใช้ตอนกดรับของ
   if (!gps) getGps().then(g => { if (g) gps = g; });
-
+  $("btnPhoto").textContent = "กำลังประมวลผลรูป…";
+  let i = 0;
+  const next = () => {
+    if (i >= take.length){ renderPhotos(); return; }
+    processPhoto(take[i++], next);
+  };
+  next();
+}
+function processPhoto(file, done){
   const reader = new FileReader();
-  reader.onerror = () => { resetPhotoBtn(); toast("อ่านไฟล์รูปไม่สำเร็จ ลองใหม่", true); };
+  reader.onerror = () => { toast("อ่านไฟล์รูปไม่สำเร็จ ข้ามรูปนี้", true); done(); };
   reader.onload = e => {
     const img = new Image();
-    img.onerror = () => { resetPhotoBtn(); toast("เปิดรูปไม่สำเร็จ (ไฟล์อาจไม่รองรับ เช่น HEIC) ลองถ่ายใหม่", true); };
+    img.onerror = () => { toast("เปิดรูปไม่สำเร็จ (อาจเป็น HEIC) ข้ามรูปนี้", true); done(); };
     img.onload = () => {
       try{
         const MAX = 1280;
         let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-        if (!w || !h){ resetPhotoBtn(); toast("รูปเสียหาย ลองใหม่", true); return; }
+        if (!w || !h){ toast("รูปเสียหาย ข้ามรูปนี้", true); return done(); }
         if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
         else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
         const cv = document.createElement("canvas");
@@ -496,13 +542,10 @@ function handlePhoto(file){
         ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
         ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
         lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
-        photoDataUrl = cv.toDataURL("image/jpeg", 0.7);
-        const pv = $("photoPreview");
-        pv.src = photoDataUrl; pv.style.display = "block";
-        const kb = Math.round(photoDataUrl.length*0.75/1024);
-        $("btnPhoto").className = "photo has";
-        $("btnPhoto").textContent = `✓ ถ่ายรูปแล้ว (~${kb} KB) — แตะเพื่อถ่ายใหม่`;
-      }catch(err){ resetPhotoBtn(); toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
+        photos.push(cv.toDataURL("image/jpeg", 0.7));
+        renderPhotos();                      // โชว์รูปทันทีทีละใบ
+      }catch(err){ toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
+      done();
     };
     img.src = e.target.result;
   };
@@ -516,7 +559,7 @@ $("btnLogout").onclick = doLogout;
 $("btnBack").onclick = loadShops;
 $("btnReceive").onclick = doReceive;
 $("btnPhoto").onclick = () => $("photoInput").click();
-$("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handlePhoto(f); });
+$("photoInput").addEventListener("change", e => { const fs = e.target.files; e.target.value = ""; if (fs && fs.length) handlePhotos(fs); });
 $("discHead").onclick = () => $("disc").classList.toggle("open");
 $("shopFilter").addEventListener("input", applyShopFilter);
 $("shopFilterClr").onclick = () => { $("shopFilter").value = ""; applyShopFilter(); $("shopFilter").focus(); };
