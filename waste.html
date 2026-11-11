@@ -515,40 +515,53 @@ function handlePhotos(files){
   };
   next();
 }
+// ย่อ+ปั๊ก location ลงรูปผ่าน canvas แต่ "ไม่ทิ้งรูป" ถ้า canvas ล้ม (เช่นบน iOS บางรุ่น)
+// → fallback เก็บรูปต้นฉบับแทน เพื่อให้รูปขึ้นเสมอ
+function stampPhoto(img, originalDataUrl){
+  try{
+    const MAX = 1280;
+    let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    if (!w || !h) return originalDataUrl;
+    if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+    else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+    const cv = document.createElement("canvas");
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d");
+    ctx.drawImage(img, 0, 0, w, h);
+    // แถบข้อมูล 3 บรรทัดล่างรูป
+    const lines = [
+      new Date().toLocaleString("th-TH"),
+      "สาขา " + (curShop.shop_name ? (curShop.shop_name + " · ") : "") + curShop.shop_code,
+      gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
+    ];
+    const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
+    const barH = lines.length*(fs+p)+p;
+    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
+    ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
+    lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
+    const out = cv.toDataURL("image/jpeg", 0.7);
+    return (out && out.length > 100) ? out : originalDataUrl;   // กันกรณี canvas ว่าง
+  }catch(err){
+    return originalDataUrl;                 // ย่อ/ปั๊กไม่ได้ → ใช้รูปต้นฉบับ
+  }
+}
 function processPhoto(file, done){
   const reader = new FileReader();
   reader.onerror = () => { toast("อ่านไฟล์รูปไม่สำเร็จ ข้ามรูปนี้", true); done(); };
   reader.onload = e => {
+    const original = e.target.result;        // dataURL รูปต้นฉบับ (fallback)
     const img = new Image();
-    img.onerror = () => { toast("เปิดรูปไม่สำเร็จ (อาจเป็น HEIC) ข้ามรูปนี้", true); done(); };
     img.onload = () => {
-      try{
-        const MAX = 1280;
-        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-        if (!w || !h){ toast("รูปเสียหาย ข้ามรูปนี้", true); return done(); }
-        if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
-        else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
-        const cv = document.createElement("canvas");
-        cv.width = w; cv.height = h;
-        const ctx = cv.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        // แถบข้อมูล 3 บรรทัดล่างรูป
-        const lines = [
-          new Date().toLocaleString("th-TH"),
-          "สาขา " + (curShop.shop_name ? (curShop.shop_name + " · ") : "") + curShop.shop_code,
-          gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
-        ];
-        const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
-        const barH = lines.length*(fs+p)+p;
-        ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
-        ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
-        lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
-        photos.push(cv.toDataURL("image/jpeg", 0.7));
-        renderPhotos();                      // โชว์รูปทันทีทีละใบ
-      }catch(err){ toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
+      photos.push(stampPhoto(img, original));
+      renderPhotos();                        // โชว์รูปทันทีทีละใบ
       done();
     };
-    img.src = e.target.result;
+    img.onerror = () => {                     // decode ผ่าน <img> ไม่ได้ → เก็บต้นฉบับไว้ (อย่าทิ้งรูป)
+      photos.push(original);
+      renderPhotos();
+      done();
+    };
+    img.src = original;
   };
   reader.readAsDataURL(file);
 }
