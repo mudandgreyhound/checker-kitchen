@@ -232,7 +232,11 @@ function toast(msg, err){
   t.className = "toast show" + (err ? " err" : "");
   setTimeout(() => t.className = "toast", 2200);
 }
-function isMunch(code){ return !!code && String(code).trim().toUpperCase().startsWith("DPF23,DPF21"); }
+function isMunch(code){
+  if(!code) return false;
+  const c = String(code).trim().toUpperCase();
+  return ["DPF23","DPF21"].some(p => c.startsWith(p));
+}
 
 async function api(path, opts){
   opts = opts || {};
