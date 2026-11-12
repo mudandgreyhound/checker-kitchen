@@ -118,6 +118,10 @@
   .pmodal .pclose{position:absolute;top:-16px;right:-16px;width:42px;height:42px;border-radius:50%;border:none;background:#fff;color:#20242b;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;line-height:1;}
   .pmodal .pclose:active{transform:scale(.94);}
   .pmodal .pstate{color:#fff;font-size:15px;text-align:center;}
+  .pmodal .pnav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.9);color:#20242b;font-size:26px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
+  .pmodal .pnav.prev{left:-14px;} .pmodal .pnav.next{right:-14px;}
+  .pmodal .pnav:disabled{opacity:.3;cursor:default;}
+  .pmodal .pcount{position:absolute;bottom:-30px;left:0;right:0;text-align:center;color:#fff;font-size:14px;font-weight:600;}
 </style>
 </head>
 <body>
@@ -177,10 +181,10 @@
       <table id="tRecv">
         <thead><tr>
           <th>ร้าน</th><th>คนขับ</th>
-          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">รับจริง</th>
+          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">ลัง</th><th class="num">รับจริง</th>
           <th class="num">ที่ต้องรับ</th><th class="num">diff</th><th>ระยะ GPS</th><th>เวลารับ</th><th>รูป</th>
         </tr></thead>
-        <tbody id="bRecv"><tr><td colspan="10" class="state">—</td></tr></tbody>
+        <tbody id="bRecv"><tr><td colspan="11" class="state">—</td></tr></tbody>
       </table>
     </div>
 
@@ -199,8 +203,11 @@
 <div class="pmodal" id="pmodal">
   <div class="pbox">
     <button class="pclose" id="pclose" aria-label="ปิด">✕</button>
+    <button class="pnav prev hidden" id="pprev" aria-label="ก่อนหน้า">‹</button>
+    <button class="pnav next hidden" id="pnext" aria-label="ถัดไป">›</button>
     <div class="pstate" id="pstate">กำลังโหลดรูป…</div>
     <img id="pimg" alt="รูปหลักฐานการรับ" style="display:none">
+    <div class="pcount" id="pcount"></div>
   </div>
 </div>
 
@@ -261,7 +268,7 @@ function doLogout(){ token=""; localStorage.removeItem(TOKEN_KEY); $("btnLogout"
 // ---- load report ----
 async function load(){
   const d = $("dPick").value;
-  $("bRecv").innerHTML = '<tr><td colspan="10" class="state">กำลังโหลด…</td></tr>';
+  $("bRecv").innerHTML = '<tr><td colspan="11" class="state">กำลังโหลด…</td></tr>';
   $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
   try{
     const data = await api("/api/waste-return/report" + (d?`?day=${d}`:""));
@@ -273,7 +280,7 @@ async function load(){
     renderCharts(data);
     renderReceived(data.received);
     renderPending(data.pending);
-  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="10" class="state">${esc(e.message)}</td></tr>`; }
+  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="11" class="state">${esc(e.message)}</td></tr>`; }
 }
 function renderKpis(t){
   const diffCls = t.diff<0?"neg":(t.diff>0?"pos":"");
@@ -281,6 +288,7 @@ function renderKpis(t){
   $("kpis").innerHTML = `
     <div class="kpi"><div class="lbl">ร้านที่รับแล้ว</div><div class="val">${t.shops_received}</div><div class="sub">ค้าง ${t.shops_pending} ร้าน</div></div>
     <div class="kpi"><div class="lbl">รวมรับจริง</div><div class="val">${t.total_recv}</div><div class="sub">โดนัท ${t.donut_recv} · มันช์กิ้น ${t.munch_recv}</div></div>
+    <div class="kpi"><div class="lbl">รวมลัง (เอากลับ)</div><div class="val">${t.crate_total||0}</div><div class="sub">ลัง</div></div>
     <div class="kpi"><div class="lbl">ยอดที่ต้องรับ</div><div class="val">${t.expected_total}</div></div>
     <div class="kpi diff"><div class="lbl">ส่วนต่าง (รับจริง − ยอดที่ต้งอรับ)</div><div class="val ${diffCls}">${diffTxt}</div></div>
     <div class="kpi"><div class="lbl">ยอดค้างรับ</div><div class="val">${t.pending_qty}</div><div class="sub">${t.shops_pending} ร้าน</div></div>`;
@@ -374,18 +382,20 @@ async function renderMix(received){
 
 function renderReceived(rows){
   $("cRecv").textContent = `(${rows.length})`;
-  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="10" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
+  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="11" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
   const b=$("bRecv"); b.innerHTML="";
   rows.forEach(r=>{
     const diffCls = r.diff<0?"diffneg":(r.diff>0?"diffpos":"");
     const diffTxt = r.diff===0?"0":((r.diff>0?"+":"")+r.diff);
     const dist = r.dist_m==null ? "—" : `<span class="${r.far?"far":""}">${r.far?"⚠ ":""}${r.dist_m>=1000?(r.dist_m/1000).toFixed(1)+" กม.":r.dist_m+" ม."}</span>`;
-    const ph = r.has_photo ? `<button class="linkbtn" onclick="viewPhoto(${r.return_id})">📷 ดู</button>` : "—";
+    const pc = r.photo_count || (r.has_photo ? 1 : 0);
+    const ph = pc ? `<button class="linkbtn" onclick="viewPhoto(${r.return_id},${pc})">📷 ดู${pc>1?` (${pc})`:""}</button>` : "—";
+    const crate = (r.crate_count==null) ? "—" : r.crate_count;
     const tr=document.createElement("tr");
     tr.className="rrow"; tr.dataset.id=r.return_id;
     tr.innerHTML = `<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
       <td>${esc(r.driver_name||r.driver||"—")}${r.driver_name?`<div class="muted" style="font-size:11px">${esc(r.driver)}</div>`:""}</td>
-      <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${r.total_recv}</td>
+      <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${crate}</td><td class="num">${r.total_recv}</td>
       <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
       <td>${dist}</td><td style="font-size:12px">${fmtDateTime(r.received_at)}</td><td>${ph}</td>`;
     tr.onclick = ev => { if(ev.target.closest(".linkbtn")) return; toggleDetail(tr, r.return_id); };
@@ -396,7 +406,7 @@ async function toggleDetail(tr, rid){
   const nx = tr.nextElementSibling;
   if(nx && nx.classList.contains("subrow")){ nx.remove(); return; }
   const sub=document.createElement("tr"); sub.className="subrow";
-  sub.innerHTML='<td colspan="10" class="state">กำลังโหลดราย SKU…</td>';
+  sub.innerHTML='<td colspan="11" class="state">กำลังโหลดราย SKU…</td>';
   tr.after(sub);
   try{
     const items = await api(`/api/waste-return/report/detail?return_id=${rid}`);
@@ -405,8 +415,8 @@ async function toggleDetail(tr, rid){
       return `<tr><td>${esc(it.item_name||it.item_code)} ${tag}</td><td class="muted">${esc(it.item_code)}</td>
               <td class="num">คาด ${it.expected_qty}</td><td class="num">รับ ${it.recv_qty}</td></tr>`;
     }).join("");
-    sub.innerHTML = `<td colspan="10"><table class="subtable">${rowsHtml}</table></td>`;
-  }catch(e){ sub.innerHTML=`<td colspan="10" class="state">${esc(e.message)}</td>`; }
+    sub.innerHTML = `<td colspan="11"><table class="subtable">${rowsHtml}</table></td>`;
+  }catch(e){ sub.innerHTML=`<td colspan="11" class="state">${esc(e.message)}</td>`; }
 }
 function renderPending(rows){
   $("cPend").textContent = `(${rows.length})`;
@@ -420,37 +430,58 @@ function renderPending(rows){
   });
 }
 
-// ---- photo (ต้องแนบ token → fetch เป็น blob แล้วเปิดใน modal) ----
-let _photoUrl = null;
+// ---- photo gallery (ต้องแนบ token → fetch blob; รองรับหลายรูป idx=1..count) ----
+let _gallery = { rid:null, count:0, idx:1, urls:{} };
 function closePhoto(){
   $("pmodal").classList.remove("show");
   const img=$("pimg"); img.style.display="none"; img.removeAttribute("src");
-  if(_photoUrl){ URL.revokeObjectURL(_photoUrl); _photoUrl=null; }
+  Object.values(_gallery.urls).forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} });
+  _gallery = { rid:null, count:0, idx:1, urls:{} };
 }
-async function viewPhoto(rid){
-  const m=$("pmodal"), img=$("pimg"), st=$("pstate");
+async function viewPhoto(rid, count){
+  _gallery = { rid, count: Math.max(1, count||1), idx:1, urls:{} };
+  $("pmodal").classList.add("show");
+  await showPhotoIdx(1);
+}
+function updateNav(){
+  const multi = _gallery.count > 1;
+  $("pprev").classList.toggle("hidden", !multi);
+  $("pnext").classList.toggle("hidden", !multi);
+  $("pprev").disabled = _gallery.idx <= 1;
+  $("pnext").disabled = _gallery.idx >= _gallery.count;
+  $("pcount").textContent = multi ? `${_gallery.idx} / ${_gallery.count}` : "";
+}
+async function showPhotoIdx(n){
+  const img=$("pimg"), st=$("pstate");
+  _gallery.idx = n; updateNav();
   st.textContent="กำลังโหลดรูป…"; st.style.display="block";
   img.style.display="none"; img.removeAttribute("src");
-  m.classList.add("show");
   try{
-    const res = await api(`/api/waste-return/photo?return_id=${rid}`, {raw:true});
-    if(!res.ok) throw new Error("ไม่มีรูป");
-    if(_photoUrl) URL.revokeObjectURL(_photoUrl);
-    _photoUrl = URL.createObjectURL(await res.blob());
+    let url = _gallery.urls[n];
+    if(!url){
+      const res = await api(`/api/waste-return/photo?return_id=${_gallery.rid}&idx=${n}`, {raw:true});
+      if(!res.ok) throw new Error("ไม่มีรูป");
+      url = URL.createObjectURL(await res.blob());
+      _gallery.urls[n] = url;
+    }
     img.onload  = () => { st.style.display="none"; img.style.display="block"; };
     img.onerror = () => { st.textContent="เปิดรูปไม่สำเร็จ"; };
-    img.src = _photoUrl;
+    img.src = url;
   }catch(e){ st.textContent = e.message || "โหลดรูปไม่สำเร็จ"; }
+}
+function navPhoto(d){
+  const n = _gallery.idx + d;
+  if(n>=1 && n<=_gallery.count) showPhotoIdx(n);
 }
 
 // ---- export Excel ----
 function exportXlsx(){
   if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
   const d = $("dPick").value || lastData.date;
-  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","มีรูป"]];
+  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"]];
   lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
-    r.donut_recv, r.munch_recv, r.total_recv, r.expected_total, r.diff,
-    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", fmtXlsxDateTime(r.received_at), r.has_photo?"มี":""]));
+    r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
+    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", fmtXlsxDateTime(r.received_at), r.photo_count||(r.has_photo?1:0)]));
   const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
   lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
   const wb = XLSX.utils.book_new();
@@ -471,8 +502,15 @@ $("btnXlsx").onclick = exportXlsx;
 $("dateBox").onclick = () => { try{ $("dPick").showPicker(); }catch(e){ $("dPick").focus(); } };
 $("dPick").onchange = () => { syncShow(); load(); };
 $("pclose").onclick = closePhoto;
+$("pprev").onclick = () => navPhoto(-1);
+$("pnext").onclick = () => navPhoto(1);
 $("pmodal").onclick = e => { if(e.target.id==="pmodal") closePhoto(); };  // คลิกพื้นหลัง = ปิด
-document.addEventListener("keydown", e => { if(e.key==="Escape" && $("pmodal").classList.contains("show")) closePhoto(); });
+document.addEventListener("keydown", e => {
+  if(!$("pmodal").classList.contains("show")) return;
+  if(e.key==="Escape") closePhoto();
+  else if(e.key==="ArrowLeft") navPhoto(-1);
+  else if(e.key==="ArrowRight") navPhoto(1);
+});
 
 function boot(){
   if(!token){ show("screenLogin"); return; }
