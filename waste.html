@@ -171,6 +171,9 @@
     <div class="shopcard">
       <div class="name" id="rcName">—</div>
       <div class="totalbox"><span class="num" id="grandTotal">0</span><span class="unit">ชิ้น</span></div>
+      <div id="noWasteNote" class="hidden" style="margin-top:10px;background:#fff7f0;border:1px solid #ffd9c2;color:#b85b1e;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.4">
+        📦 ร้านนี้ไม่มีโดนัทให้รับกลับ — <b>โหมดรับลังเปล่า</b> (กรอกจำนวนลัง + ถ่ายรูปลังด้านล่าง)
+      </div>
     </div>
 
     <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
@@ -392,7 +395,19 @@ function applyShopFilter(){
                         || String(r.shop_name || "").toUpperCase().includes(q))
     : lastRows;
 
-  if (!rows.length){ $("shopState").textContent = `ไม่พบร้านที่ตรงกับ “${raw}”`; return; }
+  if (!rows.length){
+    $("shopState").textContent = `ไม่พบร้านที่ต้องรับที่ตรงกับ “${raw}”`;
+    const code = raw.replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+    if (code){
+      const el = document.createElement("div");
+      el.className = "shopitem";
+      el.style.cssText = "justify-content:center;color:var(--orange);font-weight:700;text-align:center";
+      el.innerHTML = `📦 เปิดร้าน ${code} เพื่อรับลังเปล่าอย่างเดียว`;
+      el.onclick = () => openCrateOnly(code);
+      box.appendChild(el);
+    }
+    return;
+  }
   $("shopState").textContent = q ? `พบ ${rows.length} ร้าน (จากทั้งหมด ${lastRows.length})`
                                  : `มี ${rows.length} ร้านที่ต้องรับ`;
 
@@ -410,12 +425,23 @@ function applyShopFilter(){
   });
 }
 
+// ---- รับลังเปล่าอย่างเดียว (ร้านไม่มี waste / ไม่อยู่ในลิสต์ → คีย์รหัสเอง) ----
+async function openCrateOnly(code){
+  let name = null;
+  try{
+    const info = await api(`/api/waste-return/shop-info?shop_code=${encodeURIComponent(code)}`);
+    name = info && info.shop_name ? info.shop_name : null;
+  }catch(e){ /* resolve ไม่ได้ก็เปิดด้วยรหัสเปล่า ๆ */ }
+  openReceive({ shop_code: code, shop_name: name });
+}
+
 // ---- receive ----
 async function openReceive(shop){
   curShop = shop;
   resetPhotos();
   $("photoInput").value = ""; $("cratePhotoInput").value = "";
-  $("rcName").textContent = (shop.shop_name || "") + " · " + shop.shop_code;
+  $("rcName").textContent = shop.shop_name ? (shop.shop_name + " · " + shop.shop_code) : shop.shop_code;
+  $("noWasteNote").classList.add("hidden");
   show("screenReceive");
   $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
   try{
@@ -429,6 +455,8 @@ async function openReceive(shop){
     });
     renderDetail();
     renderCounters();
+    // ไม่มี waste ให้รับ → โหมดรับลังเปล่า (โชว์ป้ายแจ้ง)
+    $("noWasteNote").classList.toggle("hidden", items.length > 0);
   }catch(e){ $("discBody").innerHTML = `<div class="state">โหลดไม่สำเร็จ: ${e.message}</div>`; }
 }
 function renderCounters(){
@@ -453,8 +481,13 @@ function renderDetail(){
 }
 
 async function doReceive(){
-  if (!items.length) return toast("ไม่มีรายการรับ", true);
-  if (!donutPhotos.length && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
+  const crateOnly = !items.length;
+  if (crateOnly && vals.crate <= 0) return toast("ร้านนี้ไม่มีโดนัทให้รับ — ใส่จำนวนลังก่อน", true);
+  if (crateOnly){
+    if (!cratePhotos.length && !confirm("ยังไม่ได้ถ่ายรูปลัง — ยืนยันรับลังเลยไหม?")) return;
+  } else {
+    if (!donutPhotos.length && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
+  }
   $("btnReceive").disabled = true;
   try{
     const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
@@ -471,9 +504,14 @@ async function doReceive(){
       items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
     };
     const r = await api("/api/waste-return/receive", { method:"POST", body: JSON.stringify(payload) });
-    let msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
-    if (vals.crate) msg += ` · ลัง ${vals.crate}`;
-    if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
+    let msg;
+    if (crateOnly){
+      msg = `✓ รับลังแล้ว ${vals.crate} ลัง`;
+    } else {
+      msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
+      if (vals.crate) msg += ` · ลัง ${vals.crate}`;
+      if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
+    }
     toast(msg);
     loadShops();
   }catch(e){ toast(e.message, true); }
