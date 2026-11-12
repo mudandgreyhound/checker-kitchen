@@ -475,19 +475,72 @@ function navPhoto(d){
 }
 
 // ---- export Excel ----
-function exportXlsx(){
+// รวม recv_qty ต่อ SKU จากทุกใบ (ดึง detail ทุก return_id) — ใช้ในชีต "สรุปรายการ"
+async function fetchSkuAgg(received){
+  const ids = (received||[]).map(r=>r.return_id).filter(x=>x!=null);
+  const results = await Promise.all(ids.map(rid =>
+    api(`/api/waste-return/report/detail?return_id=${rid}`).catch(()=>[])));
+  const agg = new Map();
+  results.forEach(items => (items||[]).forEach(it=>{
+    const q = Number(it.recv_qty)||0; if(q<=0) return;
+    const code = it.item_code || it.item_name || "?";
+    const cur = agg.get(code) || {code, name: it.item_name||it.item_code||code, qty:0, munch: !!it.is_munch};
+    cur.qty += q; agg.set(code, cur);
+  }));
+  return [...agg.values()].sort((a,b)=> b.qty - a.qty);
+}
+
+async function exportXlsx(){
   if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
-  const d = $("dPick").value || lastData.date;
-  const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"]];
-  lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
-    r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
-    r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", fmtXlsxDateTime(r.received_at), r.photo_count||(r.has_photo?1:0)]));
-  const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
-  lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(recv), "รับแล้ว");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pend), "ค้างรับ");
-  XLSX.writeFile(wb, `waste_report_${d}.xlsx`);
+  const btn=$("btnXlsx"), old=btn.textContent; btn.disabled=true; btn.textContent="⏳ กำลังสร้าง…";
+  try{
+    const d = $("dPick").value || lastData.date;
+    const t = lastData.totals || {};
+
+    // 1) ชีตสรุป (KPI)
+    const summary = [
+      ["รายงานรับ Waste — สรุป"],
+      ["วันที่", fmtTH(d)],
+      [],
+      ["ร้านที่รับแล้ว (ร้าน)", t.shops_received||0],
+      ["ร้านค้างรับ (ร้าน)", t.shops_pending||0],
+      [],
+      ["รวมรับจริง (ชิ้น)", t.total_recv||0],
+      ["   • โดนัท", t.donut_recv||0],
+      ["   • มันช์กิ้น", t.munch_recv||0],
+      ["รวมลัง เอากลับ (ลัง)", t.crate_total||0],
+      ["ยอดที่ต้องรับ (ชิ้น)", t.expected_total||0],
+      ["ส่วนต่าง รับจริง−ต้องรับ (ชิ้น)", t.diff||0],
+      ["ยอดค้างรับ (ชิ้น)", t.pending_qty||0],
+    ];
+
+    // 2) ชีตรับแล้ว (+ แถวรวมท้ายตาราง)
+    const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"]];
+    lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
+      r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
+      r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", fmtXlsxDateTime(r.received_at), r.photo_count||(r.has_photo?1:0)]));
+    recv.push(["รวม","","", t.donut_recv||0, t.munch_recv||0, t.crate_total||0, t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
+
+    // 3) ชีตค้างรับ
+    const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
+    lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
+
+    // 4) ชีตสรุปรายการ (SKU) — รับจริงต่อรายการ รวมทุกร้าน
+    const skuRows = await fetchSkuAgg(lastData.received);
+    const sku = [["รายการ","รหัส","ประเภท","รับจริง (ชิ้น)"]];
+    skuRows.forEach(s=>sku.push([s.name, s.code, s.munch?"มันช์กิ้น":"โดนัท", s.qty]));
+    if(skuRows.length){
+      sku.push(["รวม","","", skuRows.reduce((a,b)=>a+b.qty,0)]);
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "สรุป");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(recv), "รับแล้ว");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pend), "ค้างรับ");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sku), "สรุปรายการ");
+    XLSX.writeFile(wb, `waste_report_${d}.xlsx`);
+  }catch(e){ toast("สร้าง Excel ไม่สำเร็จ: "+(e.message||e), true); }
+  finally{ btn.disabled=false; btn.textContent=old; }
 }
 
 // ---- wire ----
