@@ -82,6 +82,11 @@
   .photo:active{background:var(--orange-dark);}
   .photo.has{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
   #photoPreview{width:100%;border-radius:12px;margin-bottom:12px;display:none;}
+  .photogrid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .photogrid:empty{display:none;margin:0;}
+  .pthumb{position:relative;width:84px;height:100px;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#f0f0f0;}
+  .pthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pthumb .prm{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#222;color:#fff;border:2px solid #fff;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
   .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
@@ -170,7 +175,7 @@
 
     <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
     <input id="photoInput" type="file" accept="image/*" capture="environment" class="hidden">
-    <img id="photoPreview" alt="รูปที่รับ">
+    <div id="photoGrid" class="photogrid"></div>
 
     <div class="counter">
       <div class="clabel">โดนัท</div>
@@ -190,6 +195,20 @@
         <button class="btn-step" data-k="munch" data-d="1">+</button>
       </div>
       <div class="cunit">ชิ้น</div>
+    </div>
+
+    <!-- ลังใส่โดนัท: ถ่ายรูปลัง (หลายรูปได้) + นับจำนวนลังที่เอากลับ -->
+    <button class="photo" id="btnCratePhoto">📦 ถ่ายรูปลังที่เอากลับ</button>
+    <input id="cratePhotoInput" type="file" accept="image/*" capture="environment" class="hidden">
+    <div id="crateGrid" class="photogrid"></div>
+    <div class="counter">
+      <div class="clabel">ลัง</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="crate" data-d="-1">−</button>
+        <div class="cval" id="crateVal">0</div>
+        <button class="btn-step" data-k="crate" data-d="1">+</button>
+      </div>
+      <div class="cunit">ลัง</div>
     </div>
 
     <button class="receive" id="btnReceive">✓ รับของ</button>
@@ -216,8 +235,9 @@ let token = localStorage.getItem(TOKEN_KEY) || "";
 let gps = null;                 // {lat,lng}
 let curShop = null;             // {shop_code, shop_name}
 let items = [];                 // ราย SKU ของร้านปัจจุบัน
-let vals = { donut: 0, munch: 0 };
-let photoDataUrl = null;
+let vals = { donut: 0, munch: 0, crate: 0 };
+let donutPhotos = [];           // รูปโดนัทที่รับ (dataURL, ปั๊ก GPS/เวลา/สาขาแล้ว) — หลายรูปได้
+let cratePhotos = [];           // รูปลังที่เอากลับ (หลายรูปได้)
 let lastRows = [];              // ร้านชุดล่าสุดจาก API (ใช้ filter ฝั่ง client)
 
 // ---- helpers ----
@@ -393,14 +413,14 @@ function applyShopFilter(){
 // ---- receive ----
 async function openReceive(shop){
   curShop = shop;
-  resetPhotoBtn();
-  $("photoInput").value = "";
+  resetPhotos();
+  $("photoInput").value = ""; $("cratePhotoInput").value = "";
   $("rcName").textContent = (shop.shop_name || "") + " · " + shop.shop_code;
   show("screenReceive");
   $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
   try{
     items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
-    vals = { donut: 0, munch: 0 };
+    vals = { donut: 0, munch: 0, crate: 0 };
     items.forEach(it => {
       // ใช้ is_munch จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code (เผื่อ backend ยังไม่ deploy/restart)
       it._munch = (it.is_munch === true || it.is_munch === false) ? it.is_munch : isMunch(it.item_code);
@@ -414,7 +434,8 @@ async function openReceive(shop){
 function renderCounters(){
   $("donutVal").textContent = vals.donut;
   $("munchVal").textContent = vals.munch;
-  $("grandTotal").textContent = vals.donut + vals.munch;
+  $("crateVal").textContent = vals.crate;
+  $("grandTotal").textContent = vals.donut + vals.munch;   // ลังไม่รวมในยอดชิ้น
 }
 function renderDetail(){
   $("discCount").textContent = `${items.length} รายการ`;
@@ -433,7 +454,7 @@ function renderDetail(){
 
 async function doReceive(){
   if (!items.length) return toast("ไม่มีรายการรับ", true);
-  if (!photoDataUrl && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
+  if (!donutPhotos.length && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
   $("btnReceive").disabled = true;
   try{
     const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
@@ -443,13 +464,15 @@ async function doReceive(){
       lat: gps ? gps.lat : null,
       lng: gps ? gps.lng : null,
       accuracy_m: gps ? gps.acc : null,
-      photo_b64: photoDataUrl,
+      photos_b64: donutPhotos.concat(cratePhotos),   // รูปโดนัท + รูปลัง (ปั๊ก GPS แล้ว)
       donut_recv: vals.donut,
       munch_recv: vals.munch,
+      crate_count: vals.crate,
       items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
     };
     const r = await api("/api/waste-return/receive", { method:"POST", body: JSON.stringify(payload) });
     let msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
+    if (vals.crate) msg += ` · ลัง ${vals.crate}`;
     if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
     toast(msg);
     loadShops();
@@ -457,56 +480,98 @@ async function doReceive(){
   finally{ $("btnReceive").disabled = false; }
 }
 
-// ---- photo: ย่อ + ปั๊ก location ลงรูป (กันพัง: ไม่หน่วงรอ GPS, มี error handler) ----
-function resetPhotoBtn(){
-  photoDataUrl = null;
-  $("photoPreview").style.display = "none";
-  $("btnPhoto").className = "photo";
-  $("btnPhoto").textContent = "📷 ถ่ายรูปโดนัทที่รับ";
+// ---- photo: ย่อ + ปั๊ก location ลงรูป (หลายรูปได้ ทั้งโดนัท/ลัง) ----
+// decode ทนทาน: createImageBitmap ก่อน (รองรับ orientation/หลายฟอร์แมต) → fallback <img>
+function drawResized(sw, sh, paint){
+  const MAX = 1280; let w = sw, h = sh;
+  if (!w || !h) throw new Error("ขนาดรูปผิดปกติ");
+  if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+  else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h; paint(cv.getContext("2d"), w, h);
+  return cv;
 }
-function handlePhoto(file){
-  $("btnPhoto").textContent = "กำลังประมวลผลรูป…";
-  // ถ้ายังไม่มีพิกัด ลองดึงใหม่เบื้องหลัง (ไม่หน่วงการแสดงรูป) ไว้ใช้ตอนกดรับของ
-  if (!gps) getGps().then(g => { if (g) gps = g; });
-
-  const reader = new FileReader();
-  reader.onerror = () => { resetPhotoBtn(); toast("อ่านไฟล์รูปไม่สำเร็จ ลองใหม่", true); };
-  reader.onload = e => {
-    const img = new Image();
-    img.onerror = () => { resetPhotoBtn(); toast("เปิดรูปไม่สำเร็จ (ไฟล์อาจไม่รองรับ เช่น HEIC) ลองถ่ายใหม่", true); };
-    img.onload = () => {
-      try{
-        const MAX = 1280;
-        let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-        if (!w || !h){ resetPhotoBtn(); toast("รูปเสียหาย ลองใหม่", true); return; }
-        if (w >= h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
-        else if (h > w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
-        const cv = document.createElement("canvas");
-        cv.width = w; cv.height = h;
-        const ctx = cv.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        // แถบข้อมูล 3 บรรทัดล่างรูป
-        const lines = [
-          new Date().toLocaleString("th-TH"),
-          "สาขา " + (curShop.shop_name ? (curShop.shop_name + " · ") : "") + curShop.shop_code,
-          gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
-        ];
-        const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
-        const barH = lines.length*(fs+p)+p;
-        ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
-        ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
-        lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
-        photoDataUrl = cv.toDataURL("image/jpeg", 0.7);
-        const pv = $("photoPreview");
-        pv.src = photoDataUrl; pv.style.display = "block";
-        const kb = Math.round(photoDataUrl.length*0.75/1024);
-        $("btnPhoto").className = "photo has";
-        $("btnPhoto").textContent = `✓ ถ่ายรูปแล้ว (~${kb} KB) — แตะเพื่อถ่ายใหม่`;
-      }catch(err){ resetPhotoBtn(); toast("ประมวลผลรูปไม่สำเร็จ: " + err.message, true); }
+async function decodeToCanvas(file){
+  let bmp = null;
+  try { bmp = await createImageBitmap(file, { imageOrientation:"from-image" }); }
+  catch(_){ try { bmp = await createImageBitmap(file); } catch(__){ bmp = null; } }
+  if (bmp){
+    const cv = drawResized(bmp.width, bmp.height, (ctx,w,h) => ctx.drawImage(bmp,0,0,w,h));
+    if (bmp.close) bmp.close();
+    return cv;
+  }
+  // fallback: FileReader + <img>
+  return await new Promise((resolve, reject) => {
+    const rd = new FileReader();
+    rd.onerror = () => reject(new Error("อ่านไฟล์ไม่สำเร็จ"));
+    rd.onload = e => {
+      const im = new Image();
+      im.onerror = () => reject(new Error("เปิดรูปไม่สำเร็จ (อาจเป็น HEIC)"));
+      im.onload = () => { try { resolve(drawResized(im.naturalWidth||im.width, im.naturalHeight||im.height,
+                                   (ctx,w,h) => ctx.drawImage(im,0,0,w,h))); }
+                          catch(err){ reject(err); } };
+      im.src = e.target.result;
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+    rd.readAsDataURL(file);
+  });
+}
+function stampCanvas(cv, label){
+  const w = cv.width, h = cv.height, ctx = cv.getContext("2d");
+  const lines = [
+    new Date().toLocaleString("th-TH"),
+    (label ? label + " · " : "") + "สาขา " +
+      ((curShop && curShop.shop_name) ? (curShop.shop_name + " · ") : "") + (curShop ? curShop.shop_code : ""),
+    gps ? ("GPS " + gps.lat.toFixed(6) + ", " + gps.lng.toFixed(6)) : "GPS: ไม่มีสัญญาณ"
+  ];
+  const fs = Math.max(15, Math.round(w*0.028)), p = Math.round(fs*0.5);
+  const barH = lines.length*(fs+p)+p;
+  ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, h-barH, w, barH);
+  ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
+  lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
+}
+async function addPhoto(file, kind){                 // kind: "donut" | "crate"
+  if (!gps) getGps().then(g => { if (g) gps = g; });  // เติมพิกัดเบื้องหลัง ไม่หน่วงการถ่าย
+  const btn = kind === "crate" ? $("btnCratePhoto") : $("btnPhoto");
+  btn.textContent = "กำลังประมวลผลรูป…";
+  try{
+    const cv = await decodeToCanvas(file);
+    stampCanvas(cv, kind === "crate" ? "ลัง" : "");
+    const url = cv.toDataURL("image/jpeg", 0.7);
+    (kind === "crate" ? cratePhotos : donutPhotos).push(url);
+    renderPhotos(kind);
+  }catch(err){
+    toast((err.message || "รูปนี้ใช้ไม่ได้") + " — ลองถ่ายใหม่ด้วยกล้อง", true);
+  }finally{
+    setPhotoBtnLabel(kind);
+  }
+}
+function setPhotoBtnLabel(kind){
+  if (kind === "crate"){
+    const n = cratePhotos.length;
+    $("btnCratePhoto").className = "photo" + (n ? " has" : "");
+    $("btnCratePhoto").textContent = n ? `✓ ถ่ายลังแล้ว ${n} รูป — แตะถ่ายเพิ่ม` : "📦 ถ่ายรูปลังที่เอากลับ";
+  } else {
+    const n = donutPhotos.length;
+    $("btnPhoto").className = "photo" + (n ? " has" : "");
+    $("btnPhoto").textContent = n ? `✓ ถ่ายโดนัทแล้ว ${n} รูป — แตะถ่ายเพิ่ม` : "📷 ถ่ายรูปโดนัทที่รับ";
+  }
+}
+function renderPhotos(kind){
+  const arr  = kind === "crate" ? cratePhotos : donutPhotos;
+  const grid = kind === "crate" ? $("crateGrid") : $("photoGrid");
+  grid.innerHTML = "";
+  arr.forEach((url, i) => {
+    const d = document.createElement("div");
+    d.className = "pthumb";
+    d.innerHTML = `<img src="${url}" alt=""><div class="prm" title="ลบรูปนี้">×</div>`;
+    d.querySelector(".prm").onclick = () => { arr.splice(i, 1); renderPhotos(kind); setPhotoBtnLabel(kind); };
+    grid.appendChild(d);
+  });
+}
+function resetPhotos(){
+  donutPhotos = []; cratePhotos = [];
+  $("photoGrid").innerHTML = ""; $("crateGrid").innerHTML = "";
+  setPhotoBtnLabel("donut"); setPhotoBtnLabel("crate");
 }
 
 // ---- wire up ----
@@ -516,7 +581,9 @@ $("btnLogout").onclick = doLogout;
 $("btnBack").onclick = loadShops;
 $("btnReceive").onclick = doReceive;
 $("btnPhoto").onclick = () => $("photoInput").click();
-$("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) handlePhoto(f); });
+$("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) addPhoto(f, "donut"); });
+$("btnCratePhoto").onclick = () => $("cratePhotoInput").click();
+$("cratePhotoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) addPhoto(f, "crate"); });
 $("discHead").onclick = () => $("disc").classList.toggle("open");
 $("shopFilter").addEventListener("input", applyShopFilter);
 $("shopFilterClr").onclick = () => { $("shopFilter").value = ""; applyShopFilter(); $("shopFilter").focus(); };
