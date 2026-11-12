@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
   :root{
     color-scheme: light;
@@ -490,55 +490,119 @@ async function fetchSkuAgg(received){
   return [...agg.values()].sort((a,b)=> b.qty - a.qty);
 }
 
+// สีธีม Dunkin (ARGB)
+const XL = {
+  orange:"FFF26322", white:"FFFFFFFF", ink:"FF20242B", line:"FFE6E6E6",
+  zebra:"FFFBF4F0", green:"FF1E8E3E", red:"FFC62828", head2:"FFFCE9DF", muted:"FF8A8F98"
+};
+function xlBorder(){ const c={style:"thin",color:{argb:XL.line}}; return {top:c,left:c,bottom:c,right:c}; }
+function xlHeaderRow(ws, labels, widths){
+  ws.columns = widths.map(w=>({width:w}));
+  const r = ws.addRow(labels); r.height = 22;
+  r.eachCell(c=>{
+    c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.orange}};
+    c.font={bold:true,color:{argb:XL.white},size:11};
+    c.alignment={vertical:"middle",horizontal:"center",wrapText:true};
+    c.border=xlBorder();
+  });
+  return r;
+}
+function xlZebra(ws, fromRow){
+  for(let i=fromRow;i<=ws.rowCount;i++){
+    const r=ws.getRow(i);
+    r.eachCell(c=>{
+      c.border=xlBorder();
+      if(i%2===1) c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.zebra}};
+    });
+  }
+}
+function xlNum(row, cols){ cols.forEach(ci=>{ const c=row.getCell(ci); c.numFmt="#,##0"; c.alignment={horizontal:"right"}; }); }
+
 async function exportXlsx(){
   if(!lastData){ return toast("ยังไม่มีข้อมูล",true); }
   const btn=$("btnXlsx"), old=btn.textContent; btn.disabled=true; btn.textContent="⏳ กำลังสร้าง…";
   try{
     const d = $("dPick").value || lastData.date;
     const t = lastData.totals || {};
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Dunkin Waste Report"; wb.created = new Date();
 
-    // 1) ชีตสรุป (KPI)
-    const summary = [
-      ["รายงานรับ Waste — สรุป"],
-      ["วันที่", fmtTH(d)],
-      [],
-      ["ร้านที่รับแล้ว (ร้าน)", t.shops_received||0],
-      ["ร้านค้างรับ (ร้าน)", t.shops_pending||0],
-      [],
-      ["รวมรับจริง (ชิ้น)", t.total_recv||0],
-      ["   • โดนัท", t.donut_recv||0],
-      ["   • มันช์กิ้น", t.munch_recv||0],
-      ["รวมลัง เอากลับ (ลัง)", t.crate_total||0],
-      ["ยอดที่ต้องรับ (ชิ้น)", t.expected_total||0],
-      ["ส่วนต่าง รับจริง−ต้องรับ (ชิ้น)", t.diff||0],
-      ["ยอดค้างรับ (ชิ้น)", t.pending_qty||0],
+    // ---------- 1) สรุป ----------
+    const s = wb.addWorksheet("สรุป");
+    s.getColumn(1).width=34; s.getColumn(2).width=18;
+    s.mergeCells("A1:B1");
+    const tt=s.getCell("A1"); tt.value="🍩 รายงานรับ Waste — สรุป";
+    tt.font={bold:true,size:16,color:{argb:XL.orange}}; tt.alignment={vertical:"middle"};
+    s.getRow(1).height=28;
+    const dr=s.addRow(["วันที่", fmtTH(d)]);
+    dr.getCell(1).font={bold:true,color:{argb:XL.muted}}; dr.getCell(2).font={bold:true};
+    s.addRow([]);
+    const kpis=[
+      ["ร้านที่รับแล้ว (ร้าน)", t.shops_received||0, XL.ink],
+      ["ร้านค้างรับ (ร้าน)", t.shops_pending||0, XL.ink],
+      ["รวมรับจริง (ชิ้น)", t.total_recv||0, XL.orange],
+      ["   • โดนัท", t.donut_recv||0, XL.ink],
+      ["   • มันช์กิ้น", t.munch_recv||0, XL.ink],
+      ["รวมลัง เอากลับ (ลัง)", t.crate_total||0, XL.orange],
+      ["ยอดที่ต้องรับ (ชิ้น)", t.expected_total||0, XL.ink],
+      ["ส่วนต่าง (รับจริง − ต้องรับ)", t.diff||0, (t.diff<0?XL.red:(t.diff>0?XL.green:XL.ink))],
+      ["ยอดค้างรับ (ชิ้น)", t.pending_qty||0, XL.ink],
     ];
+    kpis.forEach(([k,v,col])=>{
+      const r=s.addRow([k,v]);
+      r.getCell(1).font={bold:k.indexOf("•")<0};
+      const c=r.getCell(2); c.numFmt="#,##0"; c.alignment={horizontal:"right"};
+      c.font={bold:true,size:12,color:{argb:col}};
+    });
 
-    // 2) ชีตรับแล้ว (+ แถวรวมท้ายตาราง)
-    const recv = [["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"]];
-    lastData.received.forEach(r=>recv.push([r.shop_name||"", r.shop_code, r.driver||"",
-      r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
-      r.dist_m==null?"":r.dist_m, r.far?"ใช่":"", fmtXlsxDateTime(r.received_at), r.photo_count||(r.has_photo?1:0)]));
-    recv.push(["รวม","","", t.donut_recv||0, t.munch_recv||0, t.crate_total||0, t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
+    // ---------- 2) รับแล้ว ----------
+    const w = wb.addWorksheet("รับแล้ว", {views:[{state:"frozen",ySplit:1}]});
+    xlHeaderRow(w, ["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"],
+                   [26,8,16,9,11,7,9,11,8,9,9,17,10]);
+    lastData.received.forEach(r=>{
+      const row=w.addRow([r.shop_name||"", r.shop_code, r.driver||"",
+        r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
+        (r.dist_m==null?"":r.dist_m), (r.far?"ใช่":""), fmtXlsxDateTime(r.received_at), r.photo_count||(r.has_photo?1:0)]);
+      xlNum(row, [4,5,6,7,8,9,10,13]);
+      const dc=row.getCell(9); dc.font={bold:true,color:{argb:(r.diff<0?XL.red:(r.diff>0?XL.green:XL.ink))}};
+      if(r.far) row.getCell(11).font={bold:true,color:{argb:XL.red}};
+    });
+    const tr=w.addRow(["รวม","","", t.donut_recv||0, t.munch_recv||0, t.crate_total||0, t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
+    xlNum(tr,[4,5,6,7,8,9]);
+    xlZebra(w,2);   // zebra ก่อน แล้วค่อยทับสีแถวรวม
+    tr.eachCell(c=>{ c.font=Object.assign({bold:true}, c.font||{}); c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.head2}}; c.border=xlBorder(); });
+    w.autoFilter="A1:M1";
 
-    // 3) ชีตค้างรับ
-    const pend = [["ร้าน","รหัส","ค้าง(ชิ้น)","รายการ"]];
-    lastData.pending.forEach(r=>pend.push([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]));
+    // ---------- 3) ค้างรับ ----------
+    const p = wb.addWorksheet("ค้างรับ", {views:[{state:"frozen",ySplit:1}]});
+    xlHeaderRow(p, ["ร้าน","รหัส","ค้าง (ชิ้น)","รายการ"], [30,10,12,10]);
+    lastData.pending.forEach(r=>{ const row=p.addRow([r.shop_name||"", r.shop_code, r.pending_qty, r.line_count||0]); xlNum(row,[3,4]); });
+    xlZebra(p,2); p.autoFilter="A1:D1";
 
-    // 4) ชีตสรุปรายการ (SKU) — รับจริงต่อรายการ รวมทุกร้าน
+    // ---------- 4) สรุปรายการ (SKU) ----------
     const skuRows = await fetchSkuAgg(lastData.received);
-    const sku = [["รายการ","รหัส","ประเภท","รับจริง (ชิ้น)"]];
-    skuRows.forEach(s=>sku.push([s.name, s.code, s.munch?"มันช์กิ้น":"โดนัท", s.qty]));
+    const k = wb.addWorksheet("สรุปรายการ", {views:[{state:"frozen",ySplit:1}]});
+    xlHeaderRow(k, ["รายการ","รหัส","ประเภท","รับจริง (ชิ้น)"], [36,12,12,14]);
+    skuRows.forEach(x=>{
+      const row=k.addRow([x.name, x.code, x.munch?"มันช์กิ้น":"โดนัท", x.qty]); xlNum(row,[4]);
+      row.getCell(3).font={color:{argb:(x.munch?"FF6B3FD1":XL.orange)},bold:true};
+    });
+    let tr2=null;
     if(skuRows.length){
-      sku.push(["รวม","","", skuRows.reduce((a,b)=>a+b.qty,0)]);
+      tr2=k.addRow(["รวม","","", skuRows.reduce((a,b)=>a+b.qty,0)]);
+      xlNum(tr2,[4]);
     }
+    xlZebra(k,2);   // zebra ก่อน แล้วค่อยทับสีแถวรวม
+    if(tr2) tr2.eachCell(c=>{ c.font=Object.assign({bold:true}, c.font||{}); c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.head2}}; c.border=xlBorder(); });
+    k.autoFilter="A1:D1";
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "สรุป");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(recv), "รับแล้ว");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pend), "ค้างรับ");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sku), "สรุปรายการ");
-    XLSX.writeFile(wb, `waste_report_${d}.xlsx`);
+    // ---------- download ----------
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download=`waste_report_${d}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
   }catch(e){ toast("สร้าง Excel ไม่สำเร็จ: "+(e.message||e), true); }
   finally{ btn.disabled=false; btn.textContent=old; }
 }
