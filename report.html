@@ -66,7 +66,7 @@
   .chart-card .chint{font-size:11px;color:var(--muted);margin-bottom:12px;}
 
   /* diverging bar (diff ต่อร้าน) */
-  .dbars{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;}
+  .dbars{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;overflow-x:hidden;}
   .dbar-row{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:8px;font-size:12px;}
   .dbar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
   .dbar-track{position:relative;height:16px;background:#f3f4f6;border-radius:4px;}
@@ -79,7 +79,7 @@
   .chart-empty{text-align:center;color:var(--muted);font-size:13px;padding:28px 0;}
 
   /* per-item bars (สัดส่วนที่รับ รายรายการ) */
-  .ibars{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;}
+  .ibars{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;overflow-x:hidden;}
   .ibar-row{display:grid;grid-template-columns:128px 1fr 50px;align-items:center;gap:8px;font-size:12px;}
   .ibar-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
   .ibar-track{position:relative;height:15px;background:#f3f4f6;border-radius:4px;}
@@ -99,6 +99,8 @@
   td.num,th.num{text-align:right;}
   #tRecv{min-width:980px;}
   #tRecv th,#tRecv td{padding-left:9px;padding-right:9px;}
+  /* ชื่อร้านยาว ๆ ให้ขึ้นบรรทัดใหม่ได้ ไม่ดันตารางจนล้นจอ */
+  #tRecv .shopnm{white-space:normal;max-width:210px;line-height:1.35;}
   /* แถวตัวกรอง (ใต้หัวตาราง "รับแล้ว") */
   #tRecv .frow th{background:#fff;padding:6px 5px;position:static;font-weight:400;}
   .frow input,.frow select{width:100%;min-width:78px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;background:#fff;color:var(--ink);}
@@ -399,7 +401,8 @@ async function renderMix(received){
   }
   const maxQ = shown[0].qty || 1;
   const bar = r => {
-    const w = (r.qty/maxQ)*100;
+    // "อื่น ๆ" รวมหลายรายการ อาจมากกว่าแท่งแรก → จำกัดไม่เกิน 100% (เดิมล้นกล่องจนมีสกรอลล์แนวนอน)
+    const w = Math.min(100, (r.qty/maxQ)*100);
     const cls = r.munch===null ? "o" : (r.munch ? "m" : "d");
     const pct = total ? Math.round(r.qty/total*100) : 0;
     return `<div class="ibar-row" title="${esc(r.name)}">
@@ -492,7 +495,7 @@ function renderReceived(rows, totalCount, active){
       : "—";
     const tr=document.createElement("tr");
     tr.className="rrow"; tr.dataset.id=r.return_id;
-    tr.innerHTML = `<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
+    tr.innerHTML = `<td><div class="shopnm">${esc(r.shop_name||r.shop_code)}</div><div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
       <td>${kitchen}</td>
       <td>${esc(r.driver_name||r.driver||"—")}${r.driver_name?`<div class="muted" style="font-size:11px">${esc(r.driver)}</div>`:""}</td>
       <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${crate}</td><td class="num">${r.total_recv}</td>
