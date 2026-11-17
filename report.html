@@ -20,7 +20,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:"Noto Sans Thai",system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;}
-  .wrap{max-width:1000px;margin:0 auto;padding:14px 14px 48px;}
+  .wrap{max-width:1180px;margin:0 auto;padding:14px 14px 48px;}
   .hidden{display:none!important;}
 
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
@@ -97,6 +97,16 @@
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;}
   th{background:#faf7f5;color:#555;font-weight:700;font-size:12px;position:sticky;top:0;}
   td.num,th.num{text-align:right;}
+  #tRecv{min-width:980px;}
+  #tRecv th,#tRecv td{padding-left:9px;padding-right:9px;}
+  /* แถวตัวกรอง (ใต้หัวตาราง "รับแล้ว") */
+  #tRecv .frow th{background:#fff;padding:6px 5px;position:static;font-weight:400;}
+  .frow input,.frow select{width:100%;min-width:78px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;background:#fff;color:var(--ink);}
+  .frow input{min-width:130px;}
+  .frow #fKitchen{min-width:126px;} .frow #fDriver{min-width:112px;} .frow #fDiff{min-width:90px;} .frow #fGps{min-width:96px;}
+  .frow .on{border-color:var(--orange);background:#fff6f1;}
+  #fRecv td{background:#fcf3ee;font-weight:700;border-top:2px solid #f1d8cb;border-bottom:none;}
+  .clearf{font-size:12px;font-weight:600;margin-left:6px;}
   tr.rrow{cursor:pointer;} tr.rrow:hover{background:#fafafa;}
   .diffpos{color:var(--green);font-weight:700;} .diffneg{color:var(--red);font-weight:700;}
   .far{color:var(--red);font-weight:700;}
@@ -176,15 +186,33 @@
       </div>
     </div>
 
-    <h3>รับแล้ว <span class="muted" id="cRecv"></span></h3>
+    <h3>รับแล้ว <span class="muted" id="cRecv"></span><button class="linkbtn clearf hidden" id="btnClearF">✕ ล้างตัวกรอง</button></h3>
     <div class="tablewrap">
       <table id="tRecv">
         <thead><tr>
-          <th>ร้าน</th><th>คนขับ</th>
+          <th>ร้าน</th><th>จากครัว</th><th>คนขับ</th>
           <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">ลัง</th><th class="num">รับจริง</th>
           <th class="num">ที่ต้องรับ</th><th class="num">diff</th><th>ระยะ GPS</th><th>เวลารับ</th><th>รูป</th>
+        </tr>
+        <tr class="frow">
+          <th><input id="fShop" type="search" placeholder="🔍 ชื่อ / รหัสร้าน" autocomplete="off"></th>
+          <th><select id="fKitchen" aria-label="กรองจากครัว"><option value="">ทั้งหมด</option></select></th>
+          <th><select id="fDriver" aria-label="กรองคนขับ"><option value="">ทั้งหมด</option></select></th>
+          <th></th><th></th><th></th><th></th><th></th>
+          <th><select id="fDiff" aria-label="กรอง diff">
+            <option value="">ทั้งหมด</option><option value="neg">รับขาด (−)</option><option value="pos">รับเกิน (+)</option>
+            <option value="zero">ตรง (0)</option><option value="nz">มีส่วนต่าง</option>
+          </select></th>
+          <th><select id="fGps" aria-label="กรองระยะ GPS">
+            <option value="">ทั้งหมด</option><option value="far">⚠ ไกลเกิน</option><option value="ok">ปกติ</option><option value="none">ไม่มี GPS</option>
+          </select></th>
+          <th></th>
+          <th><select id="fPhoto" aria-label="กรองรูป">
+            <option value="">ทั้งหมด</option><option value="yes">มีรูป</option><option value="no">ไม่มีรูป</option>
+          </select></th>
         </tr></thead>
-        <tbody id="bRecv"><tr><td colspan="11" class="state">—</td></tr></tbody>
+        <tbody id="bRecv"><tr><td colspan="12" class="state">—</td></tr></tbody>
+        <tfoot id="fRecv"></tfoot>
       </table>
     </div>
 
@@ -224,6 +252,7 @@ const $ = id => document.getElementById(id);
 function show(s){ ["screenLogin","screenReport"].forEach(x=>$(x).classList.add("hidden")); $(s).classList.remove("hidden"); }
 function toast(m,err){ const t=$("toast"); t.textContent=m; t.className="toast show"+(err?" err":""); setTimeout(()=>t.className="toast",2400); }
 const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const escA = s => esc(s).replace(/"/g,"&quot;");   // สำหรับค่าใน attribute
 // "2026-09-30T14:29:09" / "2026-09-30 14:29:09" → "30/09 14:29"
 function fmtDateTime(s){
   if(!s) return "—";
@@ -268,7 +297,8 @@ function doLogout(){ token=""; localStorage.removeItem(TOKEN_KEY); $("btnLogout"
 // ---- load report ----
 async function load(){
   const d = $("dPick").value;
-  $("bRecv").innerHTML = '<tr><td colspan="11" class="state">กำลังโหลด…</td></tr>';
+  $("bRecv").innerHTML = '<tr><td colspan="12" class="state">กำลังโหลด…</td></tr>';
+  $("fRecv").innerHTML = "";
   $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
   try{
     const data = await api("/api/waste-return/report" + (d?`?day=${d}`:""));
@@ -278,9 +308,10 @@ async function load(){
     lastData = data;
     renderKpis(data.totals);
     renderCharts(data);
-    renderReceived(data.received);
+    buildFilterOptions(data.received || []);
+    applyFilters();
     renderPending(data.pending);
-  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="11" class="state">${esc(e.message)}</td></tr>`; }
+  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="12" class="state">${esc(e.message)}</td></tr>`; }
 }
 function renderKpis(t){
   const diffCls = t.diff<0?"neg":(t.diff>0?"pos":"");
@@ -380,20 +411,89 @@ async function renderMix(received){
   el.innerHTML = shown.map(bar).join("") + (other ? bar(other) : "");
 }
 
-function renderReceived(rows){
-  $("cRecv").textContent = `(${rows.length})`;
-  if(!rows.length){ $("bRecv").innerHTML='<tr><td colspan="11" class="state">ยังไม่มีการรับวันนี้</td></tr>'; return; }
+// ---- ตัวกรองตาราง "รับแล้ว" (กรองฝั่งหน้าเว็บ ไม่ยิง API ใหม่) ----
+const F_IDS = ["fShop","fKitchen","fDriver","fDiff","fGps","fPhoto"];
+const NONE = "__none__";
+const kitchenLabel = r => r.kitchen_name || r.kitchen_code || "";
+const photoCount = r => r.photo_count || (r.has_photo ? 1 : 0);
+
+// เติมตัวเลือก ครัว/คนขับ จากข้อมูลวันนั้น — คงค่าที่เลือกไว้ถ้ายังมีอยู่
+function fillSelect(id, opts){
+  const el=$(id), prev=el.value;
+  el.innerHTML = '<option value="">ทั้งหมด</option>' +
+    opts.map(o=>`<option value="${escA(o.v)}">${esc(o.label)}</option>`).join("");
+  el.value = opts.some(o=>o.v===prev) ? prev : "";
+}
+function buildFilterOptions(rows){
+  const group = (keyFn, labelFn) => {
+    const m = new Map();
+    rows.forEach(r=>{
+      const k = keyFn(r) || NONE;
+      const cur = m.get(k) || {v:k, name: k===NONE ? "(ไม่ระบุ)" : labelFn(r), n:0};
+      cur.n++; m.set(k, cur);
+    });
+    return [...m.values()]
+      .sort((a,b)=> (a.v===NONE)-(b.v===NONE) || a.name.localeCompare(b.name,"th"))
+      .map(o=>({v:o.v, label:`${o.name} (${o.n})`}));
+  };
+  fillSelect("fKitchen", group(r=>r.kitchen_code, r=>kitchenLabel(r)));
+  fillSelect("fDriver",  group(r=>r.driver,       r=>r.driver_name||r.driver));
+}
+function getFilters(){
+  return { shop: $("fShop").value.trim().toLowerCase(), kitchen: $("fKitchen").value,
+           driver: $("fDriver").value, diff: $("fDiff").value, gps: $("fGps").value, photo: $("fPhoto").value };
+}
+function rowPass(r, f){
+  if(f.shop && !`${r.shop_name||""} ${r.shop_code||""}`.toLowerCase().includes(f.shop)) return false;
+  if(f.kitchen && (r.kitchen_code || NONE) !== f.kitchen) return false;
+  if(f.driver  && (r.driver || NONE) !== f.driver) return false;
+  if(f.diff==="neg"  && !(r.diff<0))  return false;
+  if(f.diff==="pos"  && !(r.diff>0))  return false;
+  if(f.diff==="zero" && r.diff!==0)   return false;
+  if(f.diff==="nz"   && r.diff===0)   return false;
+  if(f.gps==="far"  && !r.far) return false;
+  if(f.gps==="ok"   && (r.dist_m==null || r.far)) return false;
+  if(f.gps==="none" && r.dist_m!=null) return false;
+  if(f.photo==="yes" && !photoCount(r)) return false;
+  if(f.photo==="no"  &&  photoCount(r)) return false;
+  return true;
+}
+function applyFilters(){
+  const all = (lastData && Array.isArray(lastData.received)) ? lastData.received : [];
+  const f = getFilters();
+  const active = Object.values(f).some(Boolean);
+  F_IDS.forEach(id => $(id).classList.toggle("on", !!$(id).value.trim()));
+  $("btnClearF").classList.toggle("hidden", !active);
+  renderReceived(active ? all.filter(r=>rowPass(r,f)) : all, all.length, active);
+}
+function clearFilters(){ F_IDS.forEach(id => { $(id).value = ""; }); applyFilters(); }
+
+function renderReceived(rows, totalCount, active){
+  if(totalCount==null) totalCount = rows.length;
+  $("cRecv").textContent = active ? `(${rows.length} / ${totalCount})` : `(${rows.length})`;
+  $("fRecv").innerHTML = "";
+  if(!rows.length){
+    const msg = totalCount ? "ไม่พบรายการตามตัวกรอง" : "ยังไม่มีการรับวันนี้";
+    $("bRecv").innerHTML=`<tr><td colspan="12" class="state">${msg}</td></tr>`; return;
+  }
   const b=$("bRecv"); b.innerHTML="";
+  const sum = {donut:0, munch:0, crate:0, total:0, expected:0};
   rows.forEach(r=>{
+    sum.donut += r.donut_recv||0; sum.munch += r.munch_recv||0; sum.crate += r.crate_count||0;
+    sum.total += r.total_recv||0; sum.expected += r.expected_total||0;
     const diffCls = r.diff<0?"diffneg":(r.diff>0?"diffpos":"");
     const diffTxt = r.diff===0?"0":((r.diff>0?"+":"")+r.diff);
     const dist = r.dist_m==null ? "—" : `<span class="${r.far?"far":""}">${r.far?"⚠ ":""}${r.dist_m>=1000?(r.dist_m/1000).toFixed(1)+" กม.":r.dist_m+" ม."}</span>`;
-    const pc = r.photo_count || (r.has_photo ? 1 : 0);
+    const pc = photoCount(r);
     const ph = pc ? `<button class="linkbtn" onclick="viewPhoto(${r.return_id},${pc})">📷 ดู${pc>1?` (${pc})`:""}</button>` : "—";
     const crate = (r.crate_count==null) ? "—" : r.crate_count;
+    const kitchen = r.kitchen_code
+      ? `${esc(kitchenLabel(r))}${r.kitchen_name?`<div class="muted" style="font-size:11px">${esc(r.kitchen_code)}</div>`:""}`
+      : "—";
     const tr=document.createElement("tr");
     tr.className="rrow"; tr.dataset.id=r.return_id;
     tr.innerHTML = `<td>${esc(r.shop_name||r.shop_code)}<div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
+      <td>${kitchen}</td>
       <td>${esc(r.driver_name||r.driver||"—")}${r.driver_name?`<div class="muted" style="font-size:11px">${esc(r.driver)}</div>`:""}</td>
       <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${crate}</td><td class="num">${r.total_recv}</td>
       <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
@@ -401,12 +501,21 @@ function renderReceived(rows){
     tr.onclick = ev => { if(ev.target.closest(".linkbtn")) return; toggleDetail(tr, r.return_id); };
     b.appendChild(tr);
   });
+  // แถวรวม — รวมเฉพาะแถวที่แสดงอยู่ (ตามตัวกรอง)
+  const sd = sum.total - sum.expected;
+  const sdCls = sd<0?"diffneg":(sd>0?"diffpos":"");
+  const n = v => v.toLocaleString();
+  $("fRecv").innerHTML = `<tr>
+    <td>รวม ${rows.length} ร้าน${active?' <span style="font-weight:400;font-size:11px">(ตามตัวกรอง)</span>':""}</td><td></td><td></td>
+    <td class="num">${n(sum.donut)}</td><td class="num">${n(sum.munch)}</td><td class="num">${n(sum.crate)}</td>
+    <td class="num">${n(sum.total)}</td><td class="num">${n(sum.expected)}</td>
+    <td class="num ${sdCls}">${sd>0?"+":""}${n(sd)}</td><td></td><td></td><td></td></tr>`;
 }
 async function toggleDetail(tr, rid){
   const nx = tr.nextElementSibling;
   if(nx && nx.classList.contains("subrow")){ nx.remove(); return; }
   const sub=document.createElement("tr"); sub.className="subrow";
-  sub.innerHTML='<td colspan="11" class="state">กำลังโหลดราย SKU…</td>';
+  sub.innerHTML='<td colspan="12" class="state">กำลังโหลดราย SKU…</td>';
   tr.after(sub);
   try{
     const items = await api(`/api/waste-return/report/detail?return_id=${rid}`);
@@ -415,8 +524,8 @@ async function toggleDetail(tr, rid){
       return `<tr><td>${esc(it.item_name||it.item_code)} ${tag}</td><td class="muted">${esc(it.item_code)}</td>
               <td class="num">คาด ${it.expected_qty}</td><td class="num">รับ ${it.recv_qty}</td></tr>`;
     }).join("");
-    sub.innerHTML = `<td colspan="11"><table class="subtable">${rowsHtml}</table></td>`;
-  }catch(e){ sub.innerHTML=`<td colspan="11" class="state">${esc(e.message)}</td>`; }
+    sub.innerHTML = `<td colspan="12"><table class="subtable">${rowsHtml}</table></td>`;
+  }catch(e){ sub.innerHTML=`<td colspan="12" class="state">${esc(e.message)}</td>`; }
 }
 function renderPending(rows){
   $("cPend").textContent = `(${rows.length})`;
@@ -557,21 +666,21 @@ async function exportXlsx(){
 
     // ---------- 2) รับแล้ว ----------
     const w = wb.addWorksheet("รับแล้ว", {views:[{state:"frozen",ySplit:1}]});
-    xlHeaderRow(w, ["ร้าน","รหัส","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"],
-                   [26,8,16,9,11,7,9,11,8,9,9,17,10]);
+    xlHeaderRow(w, ["ร้าน","รหัส","จากครัว","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"],
+                   [26,8,18,16,9,11,7,9,11,8,9,9,17,10]);
     lastData.received.forEach(r=>{
-      const row=w.addRow([r.shop_name||"", r.shop_code, r.driver||"",
+      const row=w.addRow([r.shop_name||"", r.shop_code, kitchenLabel(r), r.driver||"",
         r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
-        (r.dist_m==null?"":r.dist_m), (r.far?"ใช่":""), fmtXlsxDateTime(r.received_at), r.photo_count||(r.has_photo?1:0)]);
-      xlNum(row, [4,5,6,7,8,9,10,13]);
-      const dc=row.getCell(9); dc.font={bold:true,color:{argb:(r.diff<0?XL.red:(r.diff>0?XL.green:XL.ink))}};
-      if(r.far) row.getCell(11).font={bold:true,color:{argb:XL.red}};
+        (r.dist_m==null?"":r.dist_m), (r.far?"ใช่":""), fmtXlsxDateTime(r.received_at), photoCount(r)]);
+      xlNum(row, [5,6,7,8,9,10,11,14]);
+      const dc=row.getCell(10); dc.font={bold:true,color:{argb:(r.diff<0?XL.red:(r.diff>0?XL.green:XL.ink))}};
+      if(r.far) row.getCell(12).font={bold:true,color:{argb:XL.red}};
     });
-    const tr=w.addRow(["รวม","","", t.donut_recv||0, t.munch_recv||0, t.crate_total||0, t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
-    xlNum(tr,[4,5,6,7,8,9]);
+    const tr=w.addRow(["รวม","","","", t.donut_recv||0, t.munch_recv||0, t.crate_total||0, t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
+    xlNum(tr,[5,6,7,8,9,10]);
     xlZebra(w,2);   // zebra ก่อน แล้วค่อยทับสีแถวรวม
     tr.eachCell(c=>{ c.font=Object.assign({bold:true}, c.font||{}); c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.head2}}; c.border=xlBorder(); });
-    w.autoFilter="A1:M1";
+    w.autoFilter="A1:N1";
 
     // ---------- 3) ค้างรับ ----------
     const p = wb.addWorksheet("ค้างรับ", {views:[{state:"frozen",ySplit:1}]});
@@ -616,6 +725,8 @@ $("inPass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
 $("btnLogout").onclick = doLogout;
 $("btnGo").onclick = load;
 $("btnXlsx").onclick = exportXlsx;
+F_IDS.forEach(id => $(id).addEventListener(id==="fShop" ? "input" : "change", applyFilters));
+$("btnClearF").onclick = clearFilters;
 $("dateBox").onclick = () => { try{ $("dPick").showPicker(); }catch(e){ $("dPick").focus(); } };
 $("dPick").onchange = () => { syncShow(); load(); };
 $("pclose").onclick = closePhoto;
