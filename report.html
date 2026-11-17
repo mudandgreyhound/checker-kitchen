@@ -59,7 +59,7 @@
   .kpi.diff .val.neg{color:var(--red);} .kpi.diff .val.pos{color:var(--green);}
 
   /* ── charts ── */
-  .charts{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-bottom:16px;}
+  .charts{display:grid;grid-template-columns:1fr 1.6fr;gap:10px;margin-bottom:16px;}
   @media(max-width:720px){ .charts{grid-template-columns:1fr;} }
   .chart-card{background:var(--card);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);min-width:0;}
   .chart-card h4{margin:0 0 2px;font-size:14px;color:var(--ink);}
@@ -67,7 +67,7 @@
 
   /* diverging bar (diff ต่อร้าน) */
   .dbars{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;overflow-x:hidden;}
-  .dbar-row{display:grid;grid-template-columns:96px 1fr 42px;align-items:center;gap:8px;font-size:12px;}
+  .dbar-row{display:grid;grid-template-columns:130px 1fr 42px;align-items:center;gap:8px;font-size:12px;}
   .dbar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
   .dbar-track{position:relative;height:16px;background:#f3f4f6;border-radius:4px;}
   .dbar-track::before{content:"";position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:#d6d8dd;}
@@ -80,7 +80,8 @@
 
   /* per-item bars (สัดส่วนที่รับ รายรายการ) */
   .ibars{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;overflow-x:hidden;}
-  .ibar-row{display:grid;grid-template-columns:128px 1fr 50px;align-items:center;gap:8px;font-size:12px;}
+  .ibar-row{display:grid;grid-template-columns:190px 1fr 50px;align-items:center;gap:8px;font-size:12px;}
+  @media(max-width:720px){ .ibar-row{grid-template-columns:128px 1fr 50px;} }
   .ibar-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
   .ibar-track{position:relative;height:15px;background:#f3f4f6;border-radius:4px;}
   .ibar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;min-width:2px;}
