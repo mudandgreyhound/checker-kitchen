@@ -106,7 +106,7 @@
   #tRecv .frow th{background:#fff;padding:6px 5px;position:static;font-weight:400;}
   .frow input,.frow select{width:100%;min-width:78px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;background:#fff;color:var(--ink);}
   .frow input{min-width:120px;}
-  .frow #fKitchen{min-width:116px;} .frow #fDriver{min-width:104px;} .frow #fDiff{min-width:84px;} .frow #fGps{min-width:90px;} .frow #fPhoto{min-width:72px;}
+  .frow #fKitchen{min-width:116px;} .frow #fDriver{min-width:104px;} .frow #fDiff{min-width:84px;}
   .frow .on{border-color:var(--orange);background:#fff6f1;}
   #fRecv td{background:#fcf3ee;font-weight:700;border-top:2px solid #f1d8cb;border-bottom:none;}
   .clearf{font-size:12px;font-weight:600;margin-left:6px;}
@@ -207,13 +207,7 @@
             <option value="">ทั้งหมด</option><option value="neg">รับขาด (−)</option><option value="pos">รับเกิน (+)</option>
             <option value="zero">ตรง (0)</option><option value="nz">มีส่วนต่าง</option>
           </select></th>
-          <th><select id="fGps" aria-label="กรองระยะ GPS">
-            <option value="">ทั้งหมด</option><option value="far">⚠ ไกลเกิน</option><option value="ok">ปกติ</option><option value="none">ไม่มี GPS</option>
-          </select></th>
-          <th></th>
-          <th><select id="fPhoto" aria-label="กรองรูป">
-            <option value="">ทั้งหมด</option><option value="yes">มีรูป</option><option value="no">ไม่มีรูป</option>
-          </select></th>
+          <th></th><th></th><th></th>
         </tr></thead>
         <tbody id="bRecv"><tr><td colspan="14" class="state">—</td></tr></tbody>
         <tfoot id="fRecv"></tfoot>
@@ -432,7 +426,7 @@ async function renderMix(received){
 }
 
 // ---- ตัวกรองตาราง "รับแล้ว" (กรองฝั่งหน้าเว็บ ไม่ยิง API ใหม่) ----
-const F_IDS = ["fShop","fKitchen","fDriver","fDiff","fGps","fPhoto"];
+const F_IDS = ["fShop","fKitchen","fDriver","fDiff"];
 const NONE = "__none__";
 const kitchenLabel = r => r.kitchen_name || r.kitchen_code || "";
 const photoCount = r => r.photo_count || (r.has_photo ? 1 : 0);
@@ -461,7 +455,7 @@ function buildFilterOptions(rows){
 }
 function getFilters(){
   return { shop: $("fShop").value.trim().toLowerCase(), kitchen: $("fKitchen").value,
-           driver: $("fDriver").value, diff: $("fDiff").value, gps: $("fGps").value, photo: $("fPhoto").value };
+           driver: $("fDriver").value, diff: $("fDiff").value };
 }
 function rowPass(r, f){
   if(f.shop && !`${r.shop_name||""} ${r.shop_code||""}`.toLowerCase().includes(f.shop)) return false;
@@ -471,11 +465,6 @@ function rowPass(r, f){
   if(f.diff==="pos"  && !(r.diff>0))  return false;
   if(f.diff==="zero" && r.diff!==0)   return false;
   if(f.diff==="nz"   && r.diff===0)   return false;
-  if(f.gps==="far"  && !r.far) return false;
-  if(f.gps==="ok"   && (r.dist_m==null || r.far)) return false;
-  if(f.gps==="none" && r.dist_m!=null) return false;
-  if(f.photo==="yes" && !photoCount(r)) return false;
-  if(f.photo==="no"  &&  photoCount(r)) return false;
   return true;
 }
 function applyFilters(){
