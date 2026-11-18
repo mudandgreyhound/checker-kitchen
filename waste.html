@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>รับ Waste</title>
+<script>
+// ขนาดตัวอักษร (A−/A+) ใช้ค่าเดียวกับ check.html: ks_fontsize px / 16 = zoom — ตั้งก่อน render กันจอกระพริบ
+(function(){ try{ var v=parseInt(localStorage.getItem('ks_fontsize')); if(v) document.documentElement.style.setProperty('--z', v/16); }catch(e){} })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,12 +30,21 @@
   .hidden{display:none!important;}
 
   /* top bar */
-  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .brand{display:flex;align-items:center;gap:10px;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;}
+  .brand{display:flex;align-items:center;gap:10px;min-width:0;}
+  .brand > div:last-child{min-width:0;}
+  .brand .t1,.brand .t2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .brand .dot{flex-shrink:0;}
   .brand .dot{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffb089,#F26322 70%);display:flex;align-items:center;justify-content:center;font-size:17px;}
   .brand .t1{font-weight:800;color:var(--orange);font-size:18px;line-height:1;}
   .brand .t2{font-size:12px;color:var(--muted);margin-top:3px;}
   .logout{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-size:13px;color:#444;font-family:inherit;cursor:pointer;}
+  /* ปุ่มหัว: 🏠 A− A+ (เหมือน check.html) */
+  .tbtns{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+  .tbtn{width:36px;height:36px;border-radius:8px;border:none;background:#f3f4f6;color:#4b5563;font-size:14px;font-weight:800;font-family:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;padding:0;}
+  .tbtn.home{font-size:16px;}
+  .tbtn:disabled{opacity:.4;cursor:default;}
+  .wrap > :not(.topbar){zoom:var(--z,1);}   /* ขยายเนื้อหา — แถบหัวคงขนาดเดิม กันชื่อหน้าโดนบีบหายตอนขยายสุด */
 
   .backlink{text-align:center;color:#3a3f47;font-size:15px;padding:12px;background:#fff;border-radius:12px;margin-bottom:12px;font-weight:500;cursor:pointer;}
 
@@ -89,6 +102,8 @@
   .pthumb .prm{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#222;color:#fff;border:2px solid #fff;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 
   .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  /* จอแคบ (กว้างจริง ÷ zoom < 370px) → ให้แถวตัวนับ/แถบตำแหน่งตัดบรรทัด แทนการล้นการ์ด (JS ใส่ class narrow) */
+  html.narrow .counter, html.narrow .locbar{flex-wrap:wrap;}
   .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
   .counter .clabel.sm{font-size:19px;line-height:1.15;}
   .counter .clabel.bombo{color:#0f8b8d;}
@@ -145,7 +160,12 @@
         <div class="t2" id="whoami">—</div>
       </div>
     </div>
-    <button class="logout hidden" id="btnLogout">log out</button>
+    <div class="tbtns">
+      <a class="tbtn home" id="btnHome" href="index.html" title="หน้าหลัก">🏠</a>
+      <button class="tbtn" id="fontDownBtn" title="ตัวอักษรเล็กลง">A−</button>
+      <button class="tbtn" id="fontUpBtn" title="ตัวอักษรใหญ่ขึ้น">A+</button>
+      <button class="logout hidden" id="btnLogout">log out</button>
+    </div>
   </div>
 
   <!-- ===== LOGIN ===== -->
@@ -286,6 +306,8 @@ const $ = id => document.getElementById(id);
 function show(screen){
   ["screenLogin","screenShops","screenReceive"].forEach(s => $(s).classList.add("hidden"));
   $(screen).classList.remove("hidden");
+  // หน้ารับของ: ซ่อน 🏠 กันกดหลุดแล้วรูป/ยอดที่กรอกหาย (กลับด้วยปุ่มย้อนกลับแทน)
+  $("btnHome").classList.toggle("hidden", screen === "screenReceive");
 }
 function toast(msg, err){
   const t = $("toast");
@@ -709,6 +731,30 @@ $("btnLogin").onclick = doLogin;
 $("inPass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 $("btnLogout").onclick = doLogout;
 $("btnBack").onclick = loadShops;
+
+// ---- ขนาดตัวอักษร A−/A+ (ค่าเดียวกับ check.html: ks_fontsize 14–24px, 16 = 100%) ----
+const FONT_KEY = "ks_fontsize", FONT_MIN = 14, FONT_MAX = 24, FONT_STEP = 2, FONT_DEFAULT = 16;
+let fontPx = (() => { try{ return parseInt(localStorage.getItem(FONT_KEY)) || FONT_DEFAULT; }catch(e){ return FONT_DEFAULT; } })();
+function applyFont(){
+  document.documentElement.style.setProperty("--z", fontPx / FONT_DEFAULT);
+  $("fontDownBtn").disabled = fontPx <= FONT_MIN;
+  $("fontUpBtn").disabled = fontPx >= FONT_MAX;
+  updateNarrow();
+}
+function updateNarrow(){
+  // ความกว้างเนื้อหาที่ถูก zoom (.wrap กว้างสุด 460, padding 14 ข้างละ ไม่โดน zoom) เทียบกับจอ 370px ที่ zoom 100%
+  const inner = (Math.min(window.innerWidth, 460) - 28) / (fontPx / FONT_DEFAULT);
+  document.documentElement.classList.toggle("narrow", inner + 28 < 370);
+}
+window.addEventListener("resize", updateNarrow);
+function setFont(px){
+  fontPx = Math.max(FONT_MIN, Math.min(FONT_MAX, px));
+  try{ localStorage.setItem(FONT_KEY, fontPx); }catch(e){}
+  applyFont();
+}
+$("fontDownBtn").onclick = () => setFont(fontPx - FONT_STEP);
+$("fontUpBtn").onclick = () => setFont(fontPx + FONT_STEP);
+applyFont();
 $("btnReceive").onclick = doReceive;
 $("btnPhoto").onclick = () => $("photoInput").click();
 $("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) addPhoto(f, "donut"); });

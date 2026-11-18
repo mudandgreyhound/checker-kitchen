@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>รายงานรับ Waste</title>
+<script>
+// ขนาดตัวอักษร (A−/A+) ใช้ค่าเดียวกับ check.html: ks_fontsize px / 16 = zoom — ตั้งก่อน render กันจอกระพริบ
+(function(){ try{ var v=parseInt(localStorage.getItem('ks_fontsize')); if(v) document.documentElement.style.setProperty('--z', v/16); }catch(e){} })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,6 +33,12 @@
   .brand .t1{font-weight:800;color:var(--orange);font-size:18px;line-height:1;}
   .brand .t2{font-size:12px;color:var(--muted);margin-top:3px;}
   .logout{border:1px solid var(--line);background:#fff;border-radius:10px;padding:7px 14px;font-size:13px;color:#444;font-family:inherit;cursor:pointer;}
+  /* ปุ่มหัว: 🏠 A− A+ (เหมือน check.html) */
+  .tbtns{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto;}
+  .tbtn{width:36px;height:36px;border-radius:8px;border:none;background:#f3f4f6;color:#4b5563;font-size:14px;font-weight:800;font-family:inherit;display:flex;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;padding:0;}
+  .tbtn.home{font-size:16px;}
+  .tbtn:disabled{opacity:.4;cursor:default;}
+  .wrap > :not(.topbar){zoom:var(--z,1);}   /* ขยายเนื้อหา — แถบหัวคงขนาดเดิม กันชื่อหน้าโดนบีบหายตอนขยายสุด */
 
   /* login */
   .login-card{background:#fff;border-radius:16px;padding:22px 18px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin:30px auto;max-width:360px;}
@@ -145,7 +155,12 @@
       <div class="dot">🍩</div>
       <div><div class="t1">รายงานรับ Waste</div><div class="t2" id="whoami">—</div></div>
     </div>
-    <button class="logout hidden" id="btnLogout">log out</button>
+    <div class="tbtns">
+      <a class="tbtn home" id="btnHome" href="index.html" title="หน้าหลัก">🏠</a>
+      <button class="tbtn" id="fontDownBtn" title="ตัวอักษรเล็กลง">A−</button>
+      <button class="tbtn" id="fontUpBtn" title="ตัวอักษรใหญ่ขึ้น">A+</button>
+      <button class="logout hidden" id="btnLogout">log out</button>
+    </div>
   </div>
 
   <!-- LOGIN -->
@@ -741,6 +756,23 @@ $("btnLogin").onclick = doLogin;
 $("inPass").addEventListener("keydown", e=>{ if(e.key==="Enter") doLogin(); });
 $("btnLogout").onclick = doLogout;
 $("btnGo").onclick = load;
+
+// ---- ขนาดตัวอักษร A−/A+ (ค่าเดียวกับ check.html: ks_fontsize 14–24px, 16 = 100%) ----
+const FONT_KEY = "ks_fontsize", FONT_MIN = 14, FONT_MAX = 24, FONT_STEP = 2, FONT_DEFAULT = 16;
+let fontPx = (() => { try{ return parseInt(localStorage.getItem(FONT_KEY)) || FONT_DEFAULT; }catch(e){ return FONT_DEFAULT; } })();
+function applyFont(){
+  document.documentElement.style.setProperty("--z", fontPx / FONT_DEFAULT);
+  $("fontDownBtn").disabled = fontPx <= FONT_MIN;
+  $("fontUpBtn").disabled = fontPx >= FONT_MAX;
+}
+function setFont(px){
+  fontPx = Math.max(FONT_MIN, Math.min(FONT_MAX, px));
+  try{ localStorage.setItem(FONT_KEY, fontPx); }catch(e){}
+  applyFont();
+}
+$("fontDownBtn").onclick = () => setFont(fontPx - FONT_STEP);
+$("fontUpBtn").onclick = () => setFont(fontPx + FONT_STEP);
+applyFont();
 $("btnXlsx").onclick = exportXlsx;
 F_IDS.forEach(id => $(id).addEventListener(id==="fShop" ? "input" : "change", applyFilters));
 $("btnClearF").onclick = clearFilters;

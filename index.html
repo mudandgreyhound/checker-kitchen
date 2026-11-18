@@ -48,7 +48,11 @@
         <div class="font-extrabold text-lg" style="color:#FF671F">DUNKIN' Kitchen</div>
         <div class="text-xs text-gray-400 truncate" id="userLabel"></div>
       </div>
-      <button id="logoutBtn" class="ml-auto flex-shrink-0 px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">log out</button>
+      <div class="ml-auto flex items-center gap-1.5 flex-shrink-0">
+        <button id="fontDownBtn" class="w-9 h-9 rounded-lg text-sm font-extrabold text-gray-600 bg-gray-100 flex items-center justify-center" title="ตัวอักษรเล็กลง">A−</button>
+        <button id="fontUpBtn" class="w-9 h-9 rounded-lg text-base font-extrabold text-gray-600 bg-gray-100 flex items-center justify-center" title="ตัวอักษรใหญ่ขึ้น">A+</button>
+        <button id="logoutBtn" class="px-3 py-2 rounded-xl text-sm font-bold text-gray-600 bg-gray-100">log out</button>
+      </div>
     </div>
   </header>
 
@@ -121,6 +125,24 @@ $('lgBtn').onclick=doLogin;
 $('lgPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
 $('lgUser').addEventListener('keydown',e=>{ if(e.key==='Enter') $('lgPass').focus(); });
 $('logoutBtn').onclick=()=>{ setTok(null); show('loginView'); };
+
+// ── ขนาดตัวอักษร A−/A+ (ค่าเดียวกับ check.html: ks_fontsize) ──
+const FONT_KEY='ks_fontsize', FONT_MIN=14, FONT_MAX=24, FONT_STEP=2, FONT_DEFAULT=16;
+const getFontSize=()=>parseInt(getComputedStyle(document.documentElement).fontSize)||FONT_DEFAULT;
+function updateFontBtns(){
+  const v=getFontSize();
+  $('fontDownBtn').disabled=v<=FONT_MIN; $('fontDownBtn').style.opacity=v<=FONT_MIN?'0.4':'1';
+  $('fontUpBtn').disabled=v>=FONT_MAX;   $('fontUpBtn').style.opacity=v>=FONT_MAX?'0.4':'1';
+}
+function setFontSize(px){
+  px=Math.max(FONT_MIN,Math.min(FONT_MAX,px));
+  document.documentElement.style.fontSize=px+'px';
+  try{ localStorage.setItem(FONT_KEY,px); }catch(e){}
+  updateFontBtns();
+}
+$('fontDownBtn').onclick=()=>setFontSize(getFontSize()-FONT_STEP);
+$('fontUpBtn').onclick=()=>setFontSize(getFontSize()+FONT_STEP);
+updateFontBtns();
 
 (async function(){
   if(getTok()){
