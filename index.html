@@ -65,7 +65,9 @@ const TOKEN_KEY = 'ks_token';
 
 // ── เมนู: เพิ่มหน้าใหม่ได้ที่นี่ ──
 const MENU = [
-  { href: 'check.html', icon: '✅', title: 'Checker', desc: 'เช็คสินค้าตามใบโอนออกจากครัว' },
+  { href: 'check.html',  icon: '✅', title: 'Checker',       desc: 'เช็คสินค้าตามใบโอนออกจากครัว' },
+  { href: 'waste.html',  icon: '♻️', title: 'รับ Waste',      desc: 'รับขนมเหลือ/ลังคืนจากร้าน + ถ่ายรูป' },
+  { href: 'report.html', icon: '📊', title: 'รายงานรับ Waste', desc: 'สรุปยอดรับ Waste รายร้าน · export Excel' },
 ];
 
 const $ = (id)=>document.getElementById(id);
@@ -92,7 +94,7 @@ function showMenu(user){
   $('userLabel').textContent=who.join(' · ');
   $('menuList').innerHTML=MENU.map(m=>`
     <a class="card menu-link" href="${esc(m.href)}">
-      <span class="text-3xl flex-shrink-0">${m.icon}</span>
+      <span class="text-3xl flex-shrink-0 w-10 text-center">${m.icon}</span>
       <span class="min-w-0 flex-1">
         <span class="block font-extrabold text-lg text-gray-800">${esc(m.title)}</span>
         <span class="block text-sm text-gray-500">${esc(m.desc)}</span>
