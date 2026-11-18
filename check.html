@@ -163,12 +163,17 @@ function cacheDocs(list){
   docCache.clear();
   (list||[]).forEach(x=>{
     const raw=String(x.tro_code), padded=raw.padStart(7,'0'), numeric=String(Number(x.tro_code));
-    docCache.set(raw,x); docCache.set(padded,x); docCache.set(numeric,x);
+    // เลขใบซ้ำข้ามครัวได้ → เก็บคีย์ "ครัว|เลข" ด้วย (คีย์เลขเปล่าไว้สำหรับคีย์เลขเอง)
+    // list เรียงใหม่→เก่า: คีย์เลขเปล่าเก็บใบแรก (ล่าสุด) ให้ตรงกับ backend ที่ไม่ระบุครัว
+    [raw,padded,numeric].forEach(k=>{ if(!docCache.has(k)) docCache.set(k,x); docCache.set((x.kitchen||'')+'|'+k,x); });
   });
 }
-function lookupDoc(code){
+function lookupDoc(code, kitchen){
   const raw=String(code).trim(), padded=raw.padStart(7,'0'), numeric=String(Number(raw));
-  return docCache.get(raw) || docCache.get(padded) || docCache.get(numeric) || null;
+  const keys=[raw,padded,numeric];
+  if(kitchen){ for(const k of keys){ const x=docCache.get(kitchen+'|'+k); if(x) return x; } }
+  for(const k of keys){ const x=docCache.get(k); if(x) return x; }
+  return null;
 }
 function isLockedByOther(x){
   if(!x || !x.locked_by) return false;
@@ -227,7 +232,7 @@ function docCard(x, badge){
   const now=Date.now();
   const lockedOther = x.locked_by && x.locked_by!==(curUser&&curUser.username)
       && x.locked_at && (now - new Date(x.locked_at).getTime() < 30*60*1000);
-  const onclick = lockedOther ? `alert('ใบนี้กำลังถูกเช็คโดย ${x.locked_by}')` : `openDoc('${x.tro_code}', ${x.status==='done'})`;
+  const onclick = lockedOther ? `alert('ใบนี้กำลังถูกเช็คโดย ${x.locked_by}')` : `openDoc('${x.tro_code}', ${x.status==='done'}, '${x.kitchen||''}')`;
   const lockTag = lockedOther ? ` <span class="text-[11px] font-bold text-red-500">🔒 ${x.locked_by}</span>` : '';
   const cls = lockedOther ? 'opacity-60' : 'active:bg-orange-50';
   const sendDate = x.de_date ? ` · ส่ง ${x.de_date.slice(0,10)}` : '';
@@ -321,16 +326,17 @@ function isDocDoneHeader(h){
 }
 
 // ── open doc ──
-async function openDoc(code, isDone){
+async function openDoc(code, isDone, kitchen){
   $('ckErr').classList.add('hidden');
-  const cached=lookupDoc(code);
+  const cached=lookupDoc(code, kitchen);
+  kitchen = kitchen || (cached && cached.kitchen) || '';
   if(isLockedByOther(cached)){
     $('ckErr').textContent='ใบนี้กำลังถูกเช็คโดย '+cached.locked_by;
     $('ckErr').classList.remove('hidden');
     return;
   }
   try{
-    const d=await api('/api/doc/'+encodeURIComponent(code));
+    const d=await api('/api/doc/'+encodeURIComponent(code)+kitQ(kitchen));
     curDoc=d;
     curDocDone = !!isDone || (cached && cached.status==='done') || isDocDoneHeader(d.header);
     console.log('[Checker] done-status check', {code, fromClickParam:isDone, cachedRecord:cached, header:d.header, resolvedCurDocDone:curDocDone});
@@ -344,6 +350,8 @@ async function openDoc(code, isDone){
   }catch(e){$('ckErr').textContent=e.message;$('ckErr').classList.remove('hidden');}
 }
 window.openDoc=openDoc;
+// ?kitchen= ให้ backend รู้ว่าใบของครัวไหน (เลขใบซ้ำข้ามครัวได้) — checker โดนบังคับครัวตัวเองฝั่ง API อยู่แล้ว
+function kitQ(k){ return k ? '?kitchen='+encodeURIComponent(k) : ''; }
 
 // ── render items (mockup-style + quick buttons) ──
 function renderItems(){
@@ -415,7 +423,7 @@ async function saveQty(idx){
   const qty=Math.max(0,parseInt($('qi'+idx).value)||0);
   $('qi'+idx).value=qty;
   try{
-    await api('/api/check',{method:'POST',body:JSON.stringify({tro_code:curDoc.header.tro_code,seq:it.seq,qty})});
+    await api('/api/check',{method:'POST',body:JSON.stringify({tro_code:curDoc.header.tro_code,kitchen:curDoc.header.kitchen,seq:it.seq,qty})});
     it.qty_checked=qty; it.checked_by=curUser.username;
     it.checked_at=new Date().toTimeString().slice(0,5);
     renderItems();
@@ -500,7 +508,7 @@ $('saveBtn').onclick=async ()=>{
   const ok=await showConfirm();
   if(!ok) return;
   const b=$('saveBtn'); b.disabled=true;
-  try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/done',{method:'POST'}); }
+  try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/done'+kitQ(curDoc.header.kitchen),{method:'POST'}); }
   catch(e){ alert('บันทึกไม่สำเร็จ: '+(e.message||e)); b.disabled=false; return; }
   b.style.background='#15803d'; b.innerHTML='<span>✓</span> เสร็จแล้ว';
   setTimeout(()=>{
@@ -511,7 +519,7 @@ $('saveBtn').onclick=async ()=>{
 };
 $('exitBtn').onclick=async ()=>{
   const b=$('exitBtn'); b.disabled=true;
-  try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/release',{method:'POST'}); }catch(e){}
+  try{ await api('/api/doc/'+encodeURIComponent(curDoc.header.tro_code)+'/release'+kitQ(curDoc.header.kitchen),{method:'POST'}); }catch(e){}
   showPickView();
   await loadDocs();
   b.disabled=false;
