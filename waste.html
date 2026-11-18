@@ -90,6 +90,13 @@
 
   .counter{background:var(--card);border-radius:14px;padding:16px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .counter .clabel{font-size:24px;font-weight:800;color:var(--orange);min-width:86px;}
+  .counter .clabel.sm{font-size:19px;line-height:1.15;}
+  .counter .clabel.bombo{color:#0f8b8d;}
+  .counter .clabel.sent{color:#1f6feb;}
+  .photo.sent{background:#1f6feb;box-shadow:0 2px 6px rgba(31,111,235,.3);}
+  .photo.sent:active{background:#1a5fcc;}
+  .photo.sent.has{background:#fff;color:var(--green-dark);border:2px solid var(--green);box-shadow:none;}
+  .sect{font-size:13px;font-weight:700;color:#555;margin:16px 2px 8px;}
   .counter .ctrl{display:flex;align-items:center;gap:10px;}
   .btn-step{width:52px;height:52px;border-radius:12px;border:none;font-size:28px;font-weight:700;font-family:inherit;color:#fff;background:var(--orange);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;}
   .btn-step.minus{background:#fff;color:var(--orange);border:2px solid var(--orange);}
@@ -114,7 +121,7 @@
   .row:last-child{border-bottom:none;}
   .row .rn{font-weight:700;font-size:14px;}
   .row .tag{display:inline-block;font-size:11px;font-weight:600;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:middle;}
-  .tag.d{background:#F26322;} .tag.m{background:#8a5cf6;}
+  .tag.d{background:#F26322;} .tag.m{background:#8a5cf6;} .tag.b{background:#0f8b8d;}
   .row .rsub{font-size:12px;color:var(--muted);margin-top:3px;}
   .row .rqty{font-size:22px;font-weight:800;min-width:44px;text-align:right;}
 
@@ -171,9 +178,7 @@
     <div class="shopcard">
       <div class="name" id="rcName">—</div>
       <div class="totalbox"><span class="num" id="grandTotal">0</span><span class="unit">ชิ้น</span></div>
-      <div id="noWasteNote" class="hidden" style="margin-top:10px;background:#fff7f0;border:1px solid #ffd9c2;color:#b85b1e;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.4">
-        📦 ร้านนี้ไม่มีโดนัทให้รับกลับ — <b>โหมดรับลังเปล่า</b> (กรอกจำนวนลัง + ถ่ายรูปลังด้านล่าง)
-      </div>
+      <div id="noWasteNote" class="hidden" style="margin-top:10px;background:#fff7f0;border:1px solid #ffd9c2;color:#b85b1e;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.4"></div>
     </div>
 
     <button class="photo" id="btnPhoto">📷 ถ่ายรูปโดนัทที่รับ</button>
@@ -200,18 +205,47 @@
       <div class="cunit">ชิ้น</div>
     </div>
 
+    <!-- บอมโบโลนี่ (DPF66023-66026) — โชว์เมื่อ backend รองรับ (features.bombo) -->
+    <div class="counter hidden" id="bomboCounter">
+      <div class="clabel sm bombo">บอมโบ<br>โลนี่</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="bombo" data-d="-1">−</button>
+        <div class="cval" id="bomboVal">0</div>
+        <button class="btn-step" data-k="bombo" data-d="1">+</button>
+      </div>
+      <div class="cunit">ชิ้น</div>
+    </div>
+
     <!-- ลังใส่โดนัท: ถ่ายรูปลัง (หลายรูปได้) + นับจำนวนลังที่เอากลับ -->
+    <div class="sect hidden" id="crateSect">↩️ ลังที่เอากลับ</div>
     <button class="photo" id="btnCratePhoto">📦 ถ่ายรูปลังที่เอากลับ</button>
     <input id="cratePhotoInput" type="file" accept="image/*" capture="environment" class="hidden">
     <div id="crateGrid" class="photogrid"></div>
     <div class="counter">
-      <div class="clabel">ลัง</div>
+      <div class="clabel" id="crateLabel">ลัง</div>
       <div class="ctrl">
         <button class="btn-step minus" data-k="crate" data-d="-1">−</button>
         <div class="cval" id="crateVal">0</div>
         <button class="btn-step" data-k="crate" data-d="1">+</button>
       </div>
       <div class="cunit">ลัง</div>
+    </div>
+
+    <!-- ลังขนมที่ส่งให้ร้าน: ถ่ายรูป (หลายรูปได้) + นับจำนวนลังที่ส่ง — โชว์เมื่อ backend รองรับ (features.crate_sent) -->
+    <div id="sentBlock" class="hidden">
+      <div class="sect">🚚 ลังขนมที่ส่งให้ร้าน</div>
+      <button class="photo sent" id="btnSentPhoto">🚚 ถ่ายรูปลังขนมที่ส่ง</button>
+      <input id="sentPhotoInput" type="file" accept="image/*" capture="environment" class="hidden">
+      <div id="sentGrid" class="photogrid"></div>
+      <div class="counter">
+        <div class="clabel sent">ลังส่ง</div>
+        <div class="ctrl">
+          <button class="btn-step minus" data-k="sent" data-d="-1">−</button>
+          <div class="cval" id="sentVal">0</div>
+          <button class="btn-step" data-k="sent" data-d="1">+</button>
+        </div>
+        <div class="cunit">ลัง</div>
+      </div>
     </div>
 
     <button class="receive" id="btnReceive">✓ รับของ</button>
@@ -238,10 +272,14 @@ let token = localStorage.getItem(TOKEN_KEY) || "";
 let gps = null;                 // {lat,lng}
 let curShop = null;             // {shop_code, shop_name}
 let items = [];                 // ราย SKU ของร้านปัจจุบัน
-let vals = { donut: 0, munch: 0, crate: 0 };
-let donutPhotos = [];           // รูปโดนัทที่รับ (dataURL, ปั๊ก GPS/เวลา/สาขาแล้ว) — หลายรูปได้
-let cratePhotos = [];           // รูปลังที่เอากลับ (หลายรูปได้)
+let vals = { donut: 0, munch: 0, bombo: 0, crate: 0, sent: 0 };
+// รูปแต่ละหมวด (dataURL, ปั๊ก GPS/เวลา/สาขาแล้ว) — หลายรูปได้
+//   donut = โดนัทที่รับกลับ · crate = ลังที่เอากลับ · sent = ลังขนมที่ส่งให้ร้าน
+let photos = { donut: [], crate: [], sent: [] };
 let lastRows = [];              // ร้านชุดล่าสุดจาก API (ใช้ filter ฝั่ง client)
+// ฟีเจอร์ที่ backend รองรับ (จาก /health) — backend เก่ายังไม่ restart = {} → ทำงานแบบเดิม
+//   ไม่ส่ง bombo_recv / crate_sent ให้ backend ที่ไม่รู้จัก (ไม่งั้นยอดหายเงียบ ๆ)
+let features = {};
 
 // ---- helpers ----
 const $ = id => document.getElementById(id);
@@ -255,10 +293,38 @@ function toast(msg, err){
   t.className = "toast show" + (err ? " err" : "");
   setTimeout(() => t.className = "toast", 2200);
 }
+// บอมโบโลนี่ (Butter Cream) — รหัสในระบบ DPF66023-66026 (เผื่อ DGF ตามเอกสาร)
+const BOMBO_CODES = new Set(["DPF","DGF"].flatMap(p => ["66023","66024","66025","66026"].map(n => p + n)));
+function isBombo(code){
+  return !!code && BOMBO_CODES.has(String(code).trim().toUpperCase());
+}
 function isMunch(code){
-  if(!code) return false;
+  if(!code || isBombo(code)) return false;
   const c = String(code).trim().toUpperCase();
   return ["DPF23","DPF21"].some(p => c.startsWith(p));
+}
+// หมวดของรายการ: ใช้ category จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code
+function catOf(it){
+  if (it.category) return it.category;
+  if (isBombo(it.item_code)) return "bombo";
+  if (it.is_munch === true || it.is_munch === false) return it.is_munch ? "munch" : "donut";
+  return isMunch(it.item_code) ? "munch" : "donut";
+}
+const CAT_TAG = { donut: '<span class="tag d">โดนัท</span>',
+                  munch: '<span class="tag m">มันช์กิ้น</span>',
+                  bombo: '<span class="tag b">บอมโบโลนี่</span>' };
+
+async function loadFeatures(){
+  try{
+    const res = await fetch(API_BASE + "/api/waste-return/health");
+    const j = await res.json();
+    features = (j && j.features) || {};
+  }catch(e){ /* ไม่ได้ก็คงค่าเดิม */ }
+  $("bomboCounter").classList.toggle("hidden", !features.bombo);
+  $("sentBlock").classList.toggle("hidden", !features.crate_sent);
+  $("crateSect").classList.toggle("hidden", !features.crate_sent);
+  $("crateLabel").textContent = features.crate_sent ? "ลังกลับ" : "ลัง";
+  $("crateLabel").classList.toggle("sm", !!features.crate_sent);
 }
 
 async function api(path, opts){
@@ -355,7 +421,8 @@ async function loadShops(){
   $("lookupWrap").classList.remove("has");
   $("shopList").innerHTML = "";
   $("shopState").textContent = "กำลังโหลดรายการร้าน…";
-  await fetchAndRenderShops();                 // แสดงทันทีด้วยพิกัดที่มีอยู่ (หรือ /shops)
+  // แสดงทันทีด้วยพิกัดที่มีอยู่ (หรือ /shops) + เช็คฟีเจอร์ backend ไปพร้อมกัน
+  await Promise.all([fetchAndRenderShops(), loadFeatures()]);
   const st = await locPermission();
   if (st === "granted"){                        // เคยอนุญาตแล้ว → หาตำแหน่งเงียบ ๆ
     renderLocBar("locating");
@@ -402,7 +469,9 @@ function applyShopFilter(){
       const el = document.createElement("div");
       el.className = "shopitem";
       el.style.cssText = "justify-content:center;color:var(--orange);font-weight:700;text-align:center";
-      el.innerHTML = `📦 เปิดร้าน ${code} เพื่อรับลังเปล่าอย่างเดียว`;
+      el.innerHTML = features.crate_sent
+        ? `📦 เปิดร้าน ${code} เพื่อบันทึกลัง (ส่ง / รับกลับ) อย่างเดียว`
+        : `📦 เปิดร้าน ${code} เพื่อรับลังเปล่าอย่างเดียว`;
       el.onclick = () => openCrateOnly(code);
       box.appendChild(el);
     }
@@ -439,38 +508,43 @@ async function openCrateOnly(code){
 async function openReceive(shop){
   curShop = shop;
   resetPhotos();
-  $("photoInput").value = ""; $("cratePhotoInput").value = "";
+  $("photoInput").value = ""; $("cratePhotoInput").value = ""; $("sentPhotoInput").value = "";
   $("rcName").textContent = shop.shop_name ? (shop.shop_name + " · " + shop.shop_code) : shop.shop_code;
   $("noWasteNote").classList.add("hidden");
   show("screenReceive");
   $("discBody").innerHTML = '<div class="state">กำลังโหลด…</div>';
   try{
     items = await api(`/api/waste-return/pending?shop_code=${encodeURIComponent(shop.shop_code)}`);
-    vals = { donut: 0, munch: 0, crate: 0 };
+    vals = { donut: 0, munch: 0, bombo: 0, crate: 0, sent: 0 };
     items.forEach(it => {
-      // ใช้ is_munch จาก backend ถ้ามี ไม่งั้นคิดเองจาก item_code (เผื่อ backend ยังไม่ deploy/restart)
-      it._munch = (it.is_munch === true || it.is_munch === false) ? it.is_munch : isMunch(it.item_code);
-      if (it._munch) vals.munch += (it.expected_qty||0);
-      else vals.donut += (it.expected_qty||0);
+      it._cat = catOf(it);
+      // backend ยังไม่รองรับบอมโบโลนี่ → รวมเข้าโดนัท (เหมือนพฤติกรรมเดิม)
+      const k = (it._cat === "bombo" && !features.bombo) ? "donut" : it._cat;
+      vals[k] += (it.expected_qty||0);
     });
     renderDetail();
     renderCounters();
-    // ไม่มี waste ให้รับ → โหมดรับลังเปล่า (โชว์ป้ายแจ้ง)
+    // ไม่มี waste ให้รับ → โหมดบันทึกลังอย่างเดียว (โชว์ป้ายแจ้ง)
+    $("noWasteNote").innerHTML = features.crate_sent
+      ? '📦 ร้านนี้ไม่มีโดนัทให้รับกลับ — <b>โหมดบันทึกลัง</b> (กรอกจำนวนลังส่ง / ลังที่เอากลับ + ถ่ายรูปลังด้านล่าง)'
+      : '📦 ร้านนี้ไม่มีโดนัทให้รับกลับ — <b>โหมดรับลังเปล่า</b> (กรอกจำนวนลัง + ถ่ายรูปลังด้านล่าง)';
     $("noWasteNote").classList.toggle("hidden", items.length > 0);
   }catch(e){ $("discBody").innerHTML = `<div class="state">โหลดไม่สำเร็จ: ${e.message}</div>`; }
 }
 function renderCounters(){
   $("donutVal").textContent = vals.donut;
   $("munchVal").textContent = vals.munch;
+  $("bomboVal").textContent = vals.bombo;
   $("crateVal").textContent = vals.crate;
-  $("grandTotal").textContent = vals.donut + vals.munch;   // ลังไม่รวมในยอดชิ้น
+  $("sentVal").textContent = vals.sent;
+  $("grandTotal").textContent = vals.donut + vals.munch + vals.bombo;   // ลังไม่รวมในยอดชิ้น
 }
 function renderDetail(){
   $("discCount").textContent = `${items.length} รายการ`;
   const body = $("discBody");
   body.innerHTML = "";
   items.forEach(it => {
-    const tag = (it._munch ?? isMunch(it.item_code)) ? '<span class="tag m">มันช์กิ้น</span>' : '<span class="tag d">โดนัท</span>';
+    const tag = CAT_TAG[it._cat || catOf(it)] || CAT_TAG.donut;
     const el = document.createElement("div");
     el.className = "row";
     el.innerHTML = `<div><div class="rn">${it.item_name || it.item_code}${tag}</div>
@@ -482,12 +556,17 @@ function renderDetail(){
 
 async function doReceive(){
   const crateOnly = !items.length;
-  if (crateOnly && vals.crate <= 0) return toast("ร้านนี้ไม่มีโดนัทให้รับ — ใส่จำนวนลังก่อน", true);
-  if (crateOnly){
-    if (!cratePhotos.length && !confirm("ยังไม่ได้ถ่ายรูปลัง — ยืนยันรับลังเลยไหม?")) return;
-  } else {
-    if (!donutPhotos.length && !confirm("ยังไม่ได้ถ่ายรูปโดนัทที่รับ — ยืนยันรับของเลยไหม?")) return;
-  }
+  const useSent = !!features.crate_sent;
+  const sent = useSent ? vals.sent : 0;
+  if (crateOnly && vals.crate <= 0 && sent <= 0)
+    return toast(useSent ? "ร้านนี้ไม่มีโดนัทให้รับ — ใส่จำนวนลังส่ง / ลังกลับก่อน"
+                         : "ร้านนี้ไม่มีโดนัทให้รับ — ใส่จำนวนลังก่อน", true);
+  // เตือนรูปที่ยังไม่ได้ถ่าย (ถามครั้งเดียว)
+  const missing = [];
+  if (!crateOnly && !photos.donut.length) missing.push("โดนัทที่รับ");
+  if (crateOnly && vals.crate > 0 && !photos.crate.length) missing.push("ลังที่เอากลับ");
+  if (sent > 0 && !photos.sent.length) missing.push("ลังขนมที่ส่ง");
+  if (missing.length && !confirm(`ยังไม่ได้ถ่ายรูป${missing.join(" / ")} — ยืนยันบันทึกเลยไหม?`)) return;
   $("btnReceive").disabled = true;
   try{
     const fresh = await getGps();          // ดึงพิกัดสด ณ ตอนกดรับของ → ลงบันทึก recv_lat/recv_lng
@@ -497,19 +576,30 @@ async function doReceive(){
       lat: gps ? gps.lat : null,
       lng: gps ? gps.lng : null,
       accuracy_m: gps ? gps.acc : null,
-      photos_b64: donutPhotos.concat(cratePhotos),   // รูปโดนัท + รูปลัง (ปั๊ก GPS แล้ว)
-      donut_recv: vals.donut,
+      // รูปโดนัท + รูปลังกลับ + รูปลังส่ง (ปั๊ก GPS + ป้ายหมวดลงรูปแล้ว)
+      photos_b64: photos.donut.concat(photos.crate, useSent ? photos.sent : []),
+      donut_recv: vals.donut + (features.bombo ? 0 : vals.bombo),
       munch_recv: vals.munch,
       crate_count: vals.crate,
       items: items.map(it => ({ item_code: it.item_code, waste_date: it.waste_date, expected_qty: it.expected_qty }))
     };
+    if (features.bombo) payload.bombo_recv = vals.bombo;
+    if (useSent) payload.crate_sent = sent;
     const r = await api("/api/waste-return/receive", { method:"POST", body: JSON.stringify(payload) });
+    const crateTxt = () => {
+      const p = [];
+      if (sent) p.push(`ลังส่ง ${sent}`);
+      if (vals.crate) p.push(`${useSent ? "ลังกลับ" : "ลัง"} ${vals.crate}`);
+      return p.join(" · ");
+    };
     let msg;
     if (crateOnly){
-      msg = `✓ รับลังแล้ว ${vals.crate} ลัง`;
+      msg = useSent ? `✓ บันทึกลังแล้ว (${crateTxt()})` : `✓ รับลังแล้ว ${vals.crate} ลัง`;
     } else {
-      msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (โดนัท ${r.donut_recv} / มันช์กิ้น ${r.munch_recv})`;
-      if (vals.crate) msg += ` · ลัง ${vals.crate}`;
+      const parts = [`โดนัท ${r.donut_recv}`, `มันช์กิ้น ${r.munch_recv}`];
+      if (features.bombo) parts.push(`บอมโบโลนี่ ${r.bombo_recv != null ? r.bombo_recv : vals.bombo}`);
+      msg = `✓ รับแล้ว ${r.total_recv} ชิ้น (${parts.join(" / ")})`;
+      if (crateTxt()) msg += ` · ${crateTxt()}`;
       if (r.diff) msg += ` · ต่างจากคาด ${r.diff > 0 ? "+" : ""}${r.diff}`;
     }
     toast(msg);
@@ -567,15 +657,22 @@ function stampCanvas(cv, label){
   ctx.fillStyle = "#fff"; ctx.font = "bold "+fs+'px system-ui,sans-serif'; ctx.textBaseline = "top";
   lines.forEach((t,i) => ctx.fillText(t, p, h-barH+p+i*(fs+p), w-2*p));
 }
-async function addPhoto(file, kind){                 // kind: "donut" | "crate"
+// ตั้งค่าปุ่ม/กริดของรูปแต่ละหมวด
+const PHOTO_KIND = {
+  donut: { btn: "btnPhoto",      grid: "photoGrid", cls: "photo",      stamp: "",
+           idle: "📷 ถ่ายรูปโดนัทที่รับ",   done: n => `✓ ถ่ายโดนัทแล้ว ${n} รูป — แตะถ่ายเพิ่ม` },
+  crate: { btn: "btnCratePhoto", grid: "crateGrid", cls: "photo",      stamp: "ลังรับกลับ",
+           idle: "📦 ถ่ายรูปลังที่เอากลับ", done: n => `✓ ถ่ายลังที่เอากลับแล้ว ${n} รูป — แตะถ่ายเพิ่ม` },
+  sent:  { btn: "btnSentPhoto",  grid: "sentGrid",  cls: "photo sent", stamp: "ลังขนมที่ส่ง",
+           idle: "🚚 ถ่ายรูปลังขนมที่ส่ง",  done: n => `✓ ถ่ายลังที่ส่งแล้ว ${n} รูป — แตะถ่ายเพิ่ม` },
+};
+async function addPhoto(file, kind){                 // kind: "donut" | "crate" | "sent"
   if (!gps) getGps().then(g => { if (g) gps = g; });  // เติมพิกัดเบื้องหลัง ไม่หน่วงการถ่าย
-  const btn = kind === "crate" ? $("btnCratePhoto") : $("btnPhoto");
-  btn.textContent = "กำลังประมวลผลรูป…";
+  $(PHOTO_KIND[kind].btn).textContent = "กำลังประมวลผลรูป…";
   try{
     const cv = await decodeToCanvas(file);
-    stampCanvas(cv, kind === "crate" ? "ลัง" : "");
-    const url = cv.toDataURL("image/jpeg", 0.7);
-    (kind === "crate" ? cratePhotos : donutPhotos).push(url);
+    stampCanvas(cv, PHOTO_KIND[kind].stamp);
+    photos[kind].push(cv.toDataURL("image/jpeg", 0.7));
     renderPhotos(kind);
   }catch(err){
     toast((err.message || "รูปนี้ใช้ไม่ได้") + " — ลองถ่ายใหม่ด้วยกล้อง", true);
@@ -584,19 +681,12 @@ async function addPhoto(file, kind){                 // kind: "donut" | "crate"
   }
 }
 function setPhotoBtnLabel(kind){
-  if (kind === "crate"){
-    const n = cratePhotos.length;
-    $("btnCratePhoto").className = "photo" + (n ? " has" : "");
-    $("btnCratePhoto").textContent = n ? `✓ ถ่ายลังแล้ว ${n} รูป — แตะถ่ายเพิ่ม` : "📦 ถ่ายรูปลังที่เอากลับ";
-  } else {
-    const n = donutPhotos.length;
-    $("btnPhoto").className = "photo" + (n ? " has" : "");
-    $("btnPhoto").textContent = n ? `✓ ถ่ายโดนัทแล้ว ${n} รูป — แตะถ่ายเพิ่ม` : "📷 ถ่ายรูปโดนัทที่รับ";
-  }
+  const k = PHOTO_KIND[kind], n = photos[kind].length, b = $(k.btn);
+  b.className = k.cls + (n ? " has" : "");
+  b.textContent = n ? k.done(n) : k.idle;
 }
 function renderPhotos(kind){
-  const arr  = kind === "crate" ? cratePhotos : donutPhotos;
-  const grid = kind === "crate" ? $("crateGrid") : $("photoGrid");
+  const arr = photos[kind], grid = $(PHOTO_KIND[kind].grid);
   grid.innerHTML = "";
   arr.forEach((url, i) => {
     const d = document.createElement("div");
@@ -607,9 +697,8 @@ function renderPhotos(kind){
   });
 }
 function resetPhotos(){
-  donutPhotos = []; cratePhotos = [];
-  $("photoGrid").innerHTML = ""; $("crateGrid").innerHTML = "";
-  setPhotoBtnLabel("donut"); setPhotoBtnLabel("crate");
+  photos = { donut: [], crate: [], sent: [] };
+  Object.keys(PHOTO_KIND).forEach(k => { $(PHOTO_KIND[k].grid).innerHTML = ""; setPhotoBtnLabel(k); });
 }
 
 // ---- wire up ----
@@ -622,6 +711,8 @@ $("btnPhoto").onclick = () => $("photoInput").click();
 $("photoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) addPhoto(f, "donut"); });
 $("btnCratePhoto").onclick = () => $("cratePhotoInput").click();
 $("cratePhotoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) addPhoto(f, "crate"); });
+$("btnSentPhoto").onclick = () => $("sentPhotoInput").click();
+$("sentPhotoInput").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) addPhoto(f, "sent"); });
 $("discHead").onclick = () => $("disc").classList.toggle("open");
 $("shopFilter").addEventListener("input", applyShopFilter);
 $("shopFilterClr").onclick = () => { $("shopFilter").value = ""; applyShopFilter(); $("shopFilter").focus(); };

@@ -85,7 +85,7 @@
   .ibar-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#444;}
   .ibar-track{position:relative;height:15px;background:#f3f4f6;border-radius:4px;}
   .ibar-fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;min-width:2px;}
-  .ibar-fill.d{background:var(--orange);} .ibar-fill.m{background:#6b3fd1;} .ibar-fill.o{background:#c9ccd3;}
+  .ibar-fill.d{background:var(--orange);} .ibar-fill.m{background:#6b3fd1;} .ibar-fill.b{background:#0f8b8d;} .ibar-fill.o{background:#c9ccd3;}
   .ibar-val{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15;}
   .ibar-val .ibar-pct{color:var(--muted);font-size:10px;font-weight:500;}
   .mixnote{display:flex;gap:14px;font-size:11px;color:var(--muted);margin-bottom:10px;flex-wrap:wrap;}
@@ -99,14 +99,14 @@
   th{background:#faf7f5;color:#555;font-weight:700;font-size:12px;position:sticky;top:0;}
   td.num,th.num{text-align:right;}
   #tRecv{min-width:980px;}
-  #tRecv th,#tRecv td{padding-left:9px;padding-right:9px;}
+  #tRecv th,#tRecv td{padding-left:7px;padding-right:7px;}
   /* ชื่อร้านยาว ๆ ให้ขึ้นบรรทัดใหม่ได้ ไม่ดันตารางจนล้นจอ */
   #tRecv .shopnm{white-space:normal;max-width:210px;line-height:1.35;}
   /* แถวตัวกรอง (ใต้หัวตาราง "รับแล้ว") */
   #tRecv .frow th{background:#fff;padding:6px 5px;position:static;font-weight:400;}
   .frow input,.frow select{width:100%;min-width:78px;padding:6px 8px;border:1px solid #ddd;border-radius:8px;font-size:12px;font-family:inherit;background:#fff;color:var(--ink);}
-  .frow input{min-width:130px;}
-  .frow #fKitchen{min-width:126px;} .frow #fDriver{min-width:112px;} .frow #fDiff{min-width:90px;} .frow #fGps{min-width:96px;}
+  .frow input{min-width:120px;}
+  .frow #fKitchen{min-width:116px;} .frow #fDriver{min-width:104px;} .frow #fDiff{min-width:84px;} .frow #fGps{min-width:90px;} .frow #fPhoto{min-width:72px;}
   .frow .on{border-color:var(--orange);background:#fff6f1;}
   #fRecv td{background:#fcf3ee;font-weight:700;border-top:2px solid #f1d8cb;border-bottom:none;}
   .clearf{font-size:12px;font-weight:600;margin-left:6px;}
@@ -114,7 +114,7 @@
   .diffpos{color:var(--green);font-weight:700;} .diffneg{color:var(--red);font-weight:700;}
   .far{color:var(--red);font-weight:700;}
   .pill{display:inline-block;font-size:11px;font-weight:600;border-radius:6px;padding:1px 7px;}
-  .pill.m{background:#efe8ff;color:#6b3fd1;} .pill.d{background:var(--pink);color:var(--orange-dark);}
+  .pill.m{background:#efe8ff;color:#6b3fd1;} .pill.d{background:var(--pink);color:var(--orange-dark);} .pill.b{background:#e0f4f4;color:#0f8b8d;}
   .subrow td{background:#fbfbfb;padding:0;border-bottom:1px solid var(--line);}
   .subtable{width:100%;border-collapse:collapse;}
   .subtable td{padding:7px 12px;font-size:12px;border-bottom:1px dashed #eee;white-space:nowrap;}
@@ -183,6 +183,7 @@
         <div class="mixnote">
           <span class="lg"><span class="sw" style="background:var(--orange)"></span>โดนัท</span>
           <span class="lg"><span class="sw" style="background:#6b3fd1"></span>มันช์กิ้น</span>
+          <span class="lg"><span class="sw" style="background:#0f8b8d"></span>บอมโบโลนี่</span>
           <span id="mixsum"></span>
         </div>
         <div class="ibars" id="mix"><div class="chart-empty">—</div></div>
@@ -194,14 +195,14 @@
       <table id="tRecv">
         <thead><tr>
           <th>ร้าน</th><th>จากครัว</th><th>คนขับ</th>
-          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">ลัง</th><th class="num">รับจริง</th>
+          <th class="num">โดนัท</th><th class="num">มันช์กิ้น</th><th class="num">บอมโบโลนี่</th><th class="num">ลังส่ง</th><th class="num">ลังกลับ</th><th class="num">รับจริง</th>
           <th class="num">ที่ต้องรับ</th><th class="num">diff</th><th>ระยะ GPS</th><th>เวลารับ</th><th>รูป</th>
         </tr>
         <tr class="frow">
           <th><input id="fShop" type="search" placeholder="🔍 ชื่อ / รหัสร้าน" autocomplete="off"></th>
           <th><select id="fKitchen" aria-label="กรองจากครัว"><option value="">ทั้งหมด</option></select></th>
           <th><select id="fDriver" aria-label="กรองคนขับ"><option value="">ทั้งหมด</option></select></th>
-          <th></th><th></th><th></th><th></th><th></th>
+          <th></th><th></th><th></th><th></th><th></th><th></th><th></th>
           <th><select id="fDiff" aria-label="กรอง diff">
             <option value="">ทั้งหมด</option><option value="neg">รับขาด (−)</option><option value="pos">รับเกิน (+)</option>
             <option value="zero">ตรง (0)</option><option value="nz">มีส่วนต่าง</option>
@@ -214,7 +215,7 @@
             <option value="">ทั้งหมด</option><option value="yes">มีรูป</option><option value="no">ไม่มีรูป</option>
           </select></th>
         </tr></thead>
-        <tbody id="bRecv"><tr><td colspan="12" class="state">—</td></tr></tbody>
+        <tbody id="bRecv"><tr><td colspan="14" class="state">—</td></tr></tbody>
         <tfoot id="fRecv"></tfoot>
       </table>
     </div>
@@ -256,6 +257,20 @@ function show(s){ ["screenLogin","screenReport"].forEach(x=>$(x).classList.add("
 function toast(m,err){ const t=$("toast"); t.textContent=m; t.className="toast show"+(err?" err":""); setTimeout(()=>t.className="toast",2400); }
 const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
 const escA = s => esc(s).replace(/"/g,"&quot;");   // สำหรับค่าใน attribute
+// หมวดสินค้า: โดนัท / มันช์กิ้น / บอมโบโลนี่ (DPF66023-66026) — ใช้ category จาก backend ถ้ามี
+const BOMBO_CODES = new Set(["DPF","DGF"].flatMap(p => ["66023","66024","66025","66026"].map(n => p + n)));
+const CAT = {
+  donut: {label:"โดนัท",      cls:"d", argb:"FFF26322"},
+  munch: {label:"มันช์กิ้น",   cls:"m", argb:"FF6B3FD1"},
+  bombo: {label:"บอมโบโลนี่", cls:"b", argb:"FF0F8B8D"},
+};
+function catOf(it){
+  if(it.category && CAT[it.category]) return it.category;
+  if(it.is_bombo || BOMBO_CODES.has(String(it.item_code||"").trim().toUpperCase())) return "bombo";
+  return it.is_munch ? "munch" : "donut";
+}
+const catPill = c => `<span class="pill ${CAT[c].cls}">${CAT[c].label}</span>`;
+const dash = v => (v==null ? "—" : v);
 // "2026-09-30T14:29:09" / "2026-09-30 14:29:09" → "30/09 14:29"
 function fmtDateTime(s){
   if(!s) return "—";
@@ -300,7 +315,7 @@ function doLogout(){ token=""; localStorage.removeItem(TOKEN_KEY); $("btnLogout"
 // ---- load report ----
 async function load(){
   const d = $("dPick").value;
-  $("bRecv").innerHTML = '<tr><td colspan="12" class="state">กำลังโหลด…</td></tr>';
+  $("bRecv").innerHTML = '<tr><td colspan="14" class="state">กำลังโหลด…</td></tr>';
   $("fRecv").innerHTML = "";
   $("bPend").innerHTML = '<tr><td colspan="3" class="state">กำลังโหลด…</td></tr>';
   try{
@@ -314,14 +329,15 @@ async function load(){
     buildFilterOptions(data.received || []);
     applyFilters();
     renderPending(data.pending);
-  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="12" class="state">${esc(e.message)}</td></tr>`; }
+  }catch(e){ toast(e.message,true); $("bRecv").innerHTML=`<tr><td colspan="14" class="state">${esc(e.message)}</td></tr>`; }
 }
 function renderKpis(t){
   const diffCls = t.diff<0?"neg":(t.diff>0?"pos":"");
   const diffTxt = (t.diff>0?"+":"")+t.diff;
   $("kpis").innerHTML = `
     <div class="kpi"><div class="lbl">ร้านที่รับแล้ว</div><div class="val">${t.shops_received}</div><div class="sub">ค้าง ${t.shops_pending} ร้าน</div></div>
-    <div class="kpi"><div class="lbl">รวมรับจริง</div><div class="val">${t.total_recv}</div><div class="sub">โดนัท ${t.donut_recv} · มันช์กิ้น ${t.munch_recv}</div></div>
+    <div class="kpi"><div class="lbl">รวมรับจริง</div><div class="val">${t.total_recv}</div><div class="sub">โดนัท ${t.donut_recv} · มันช์กิ้น ${t.munch_recv} · บอมโบโลนี่ ${t.bombo_recv||0}</div></div>
+    <div class="kpi"><div class="lbl">ลังขนมที่ส่ง</div><div class="val">${t.crate_sent_total||0}</div><div class="sub">ลัง</div></div>
     <div class="kpi"><div class="lbl">รวมลัง (เอากลับ)</div><div class="val">${t.crate_total||0}</div><div class="sub">ลัง</div></div>
     <div class="kpi"><div class="lbl">ยอดที่ต้องรับ</div><div class="val">${t.expected_total}</div></div>
     <div class="kpi diff"><div class="lbl">ส่วนต่าง (รับจริง − ยอดที่ต้งอรับ)</div><div class="val ${diffCls}">${diffTxt}</div></div>
@@ -382,29 +398,29 @@ async function renderMix(received){
     const q = Number(it.recv_qty)||0;
     if(q<=0) return;
     const code = it.item_code || it.item_name || "?";
-    const cur = agg.get(code) || {name: it.item_name||it.item_code||code, qty:0, munch: !!it.is_munch};
+    const cur = agg.get(code) || {name: it.item_name||it.item_code||code, qty:0, cat: catOf(it)};
     cur.qty += q; agg.set(code, cur);
   }));
   const rows = [...agg.values()].sort((a,b)=> b.qty - a.qty);
   if(!rows.length){ el.innerHTML='<div class="chart-empty">ไม่มีรายการที่รับ</div>'; return; }
 
   const total = rows.reduce((s,r)=>s+r.qty,0);
-  const dQty  = rows.filter(r=>!r.munch).reduce((s,r)=>s+r.qty,0);
-  const mQty  = total - dQty;
-  if(sum) sum.textContent = `รวม ${total.toLocaleString()} ชิ้น · โดนัท ${dQty.toLocaleString()} · มันช์กิ้น ${mQty.toLocaleString()}`;
+  const byCat = c => rows.filter(r=>r.cat===c).reduce((s,r)=>s+r.qty,0);
+  if(sum) sum.textContent = `รวม ${total.toLocaleString()} ชิ้น · โดนัท ${byCat("donut").toLocaleString()}`
+                          + ` · มันช์กิ้น ${byCat("munch").toLocaleString()} · บอมโบโลนี่ ${byCat("bombo").toLocaleString()}`;
 
   const TOP = 12;
   let shown = rows, other = null;
   if(rows.length > TOP){
     shown = rows.slice(0, TOP);
     const rest = rows.slice(TOP);
-    other = {name:`อื่น ๆ (${rest.length} รายการ)`, qty:rest.reduce((s,r)=>s+r.qty,0), munch:null};
+    other = {name:`อื่น ๆ (${rest.length} รายการ)`, qty:rest.reduce((s,r)=>s+r.qty,0), cat:null};
   }
   const maxQ = shown[0].qty || 1;
   const bar = r => {
     // "อื่น ๆ" รวมหลายรายการ อาจมากกว่าแท่งแรก → จำกัดไม่เกิน 100% (เดิมล้นกล่องจนมีสกรอลล์แนวนอน)
     const w = Math.min(100, (r.qty/maxQ)*100);
-    const cls = r.munch===null ? "o" : (r.munch ? "m" : "d");
+    const cls = r.cat===null ? "o" : CAT[r.cat].cls;
     const pct = total ? Math.round(r.qty/total*100) : 0;
     return `<div class="ibar-row" title="${esc(r.name)}">
       <div class="ibar-name">${esc(r.name)}</div>
@@ -478,12 +494,13 @@ function renderReceived(rows, totalCount, active){
   $("fRecv").innerHTML = "";
   if(!rows.length){
     const msg = totalCount ? "ไม่พบรายการตามตัวกรอง" : "ยังไม่มีการรับวันนี้";
-    $("bRecv").innerHTML=`<tr><td colspan="12" class="state">${msg}</td></tr>`; return;
+    $("bRecv").innerHTML=`<tr><td colspan="14" class="state">${msg}</td></tr>`; return;
   }
   const b=$("bRecv"); b.innerHTML="";
-  const sum = {donut:0, munch:0, crate:0, total:0, expected:0};
+  const sum = {donut:0, munch:0, bombo:0, sent:0, crate:0, total:0, expected:0};
   rows.forEach(r=>{
-    sum.donut += r.donut_recv||0; sum.munch += r.munch_recv||0; sum.crate += r.crate_count||0;
+    sum.donut += r.donut_recv||0; sum.munch += r.munch_recv||0; sum.bombo += r.bombo_recv||0;
+    sum.sent += r.crate_sent||0; sum.crate += r.crate_count||0;
     sum.total += r.total_recv||0; sum.expected += r.expected_total||0;
     const diffCls = r.diff<0?"diffneg":(r.diff>0?"diffpos":"");
     const diffTxt = r.diff===0?"0":((r.diff>0?"+":"")+r.diff);
@@ -499,7 +516,8 @@ function renderReceived(rows, totalCount, active){
     tr.innerHTML = `<td><div class="shopnm">${esc(r.shop_name||r.shop_code)}</div><div class="muted" style="font-size:11px">${esc(r.shop_code)}</div></td>
       <td>${kitchen}</td>
       <td>${esc(r.driver_name||r.driver||"—")}${r.driver_name?`<div class="muted" style="font-size:11px">${esc(r.driver)}</div>`:""}</td>
-      <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${crate}</td><td class="num">${r.total_recv}</td>
+      <td class="num">${r.donut_recv}</td><td class="num">${r.munch_recv}</td><td class="num">${r.bombo_recv||0}</td>
+      <td class="num">${dash(r.crate_sent)}</td><td class="num">${crate}</td><td class="num">${r.total_recv}</td>
       <td class="num">${r.expected_total}</td><td class="num ${diffCls}">${diffTxt}</td>
       <td>${dist}</td><td style="font-size:12px">${fmtDateTime(r.received_at)}</td><td>${ph}</td>`;
     tr.onclick = ev => { if(ev.target.closest(".linkbtn")) return; toggleDetail(tr, r.return_id); };
@@ -511,7 +529,8 @@ function renderReceived(rows, totalCount, active){
   const n = v => v.toLocaleString();
   $("fRecv").innerHTML = `<tr>
     <td>รวม ${rows.length} ร้าน${active?' <span style="font-weight:400;font-size:11px">(ตามตัวกรอง)</span>':""}</td><td></td><td></td>
-    <td class="num">${n(sum.donut)}</td><td class="num">${n(sum.munch)}</td><td class="num">${n(sum.crate)}</td>
+    <td class="num">${n(sum.donut)}</td><td class="num">${n(sum.munch)}</td><td class="num">${n(sum.bombo)}</td>
+    <td class="num">${n(sum.sent)}</td><td class="num">${n(sum.crate)}</td>
     <td class="num">${n(sum.total)}</td><td class="num">${n(sum.expected)}</td>
     <td class="num ${sdCls}">${sd>0?"+":""}${n(sd)}</td><td></td><td></td><td></td></tr>`;
 }
@@ -519,17 +538,17 @@ async function toggleDetail(tr, rid){
   const nx = tr.nextElementSibling;
   if(nx && nx.classList.contains("subrow")){ nx.remove(); return; }
   const sub=document.createElement("tr"); sub.className="subrow";
-  sub.innerHTML='<td colspan="12" class="state">กำลังโหลดราย SKU…</td>';
+  sub.innerHTML='<td colspan="14" class="state">กำลังโหลดราย SKU…</td>';
   tr.after(sub);
   try{
     const items = await api(`/api/waste-return/report/detail?return_id=${rid}`);
     const rowsHtml = items.map(it=>{
-      const tag = it.is_munch?'<span class="pill m">มันช์กิ้น</span>':'<span class="pill d">โดนัท</span>';
+      const tag = catPill(catOf(it));
       return `<tr><td>${esc(it.item_name||it.item_code)} ${tag}</td><td class="muted">${esc(it.item_code)}</td>
               <td class="num">คาด ${it.expected_qty}</td><td class="num">รับ ${it.recv_qty}</td></tr>`;
     }).join("");
-    sub.innerHTML = `<td colspan="12"><table class="subtable">${rowsHtml}</table></td>`;
-  }catch(e){ sub.innerHTML=`<td colspan="12" class="state">${esc(e.message)}</td>`; }
+    sub.innerHTML = `<td colspan="14">${rowsHtml ? `<table class="subtable">${rowsHtml}</table>` : '<div class="state">ไม่มีรายการขนม (บันทึกเฉพาะลัง)</div>'}</td>`;
+  }catch(e){ sub.innerHTML=`<td colspan="14" class="state">${esc(e.message)}</td>`; }
 }
 function renderPending(rows){
   $("cPend").textContent = `(${rows.length})`;
@@ -597,7 +616,7 @@ async function fetchSkuAgg(received){
   results.forEach(items => (items||[]).forEach(it=>{
     const q = Number(it.recv_qty)||0; if(q<=0) return;
     const code = it.item_code || it.item_name || "?";
-    const cur = agg.get(code) || {code, name: it.item_name||it.item_code||code, qty:0, munch: !!it.is_munch};
+    const cur = agg.get(code) || {code, name: it.item_name||it.item_code||code, qty:0, cat: catOf(it)};
     cur.qty += q; agg.set(code, cur);
   }));
   return [...agg.values()].sort((a,b)=> b.qty - a.qty);
@@ -656,6 +675,8 @@ async function exportXlsx(){
       ["รวมรับจริง (ชิ้น)", t.total_recv||0, XL.orange],
       ["   • โดนัท", t.donut_recv||0, XL.ink],
       ["   • มันช์กิ้น", t.munch_recv||0, XL.ink],
+      ["   • บอมโบโลนี่", t.bombo_recv||0, XL.ink],
+      ["ลังขนมที่ส่ง (ลัง)", t.crate_sent_total||0, XL.orange],
       ["รวมลัง เอากลับ (ลัง)", t.crate_total||0, XL.orange],
       ["ยอดที่ต้องรับ (ชิ้น)", t.expected_total||0, XL.ink],
       ["ส่วนต่าง (รับจริง − ต้องรับ)", t.diff||0, (t.diff<0?XL.red:(t.diff>0?XL.green:XL.ink))],
@@ -670,21 +691,23 @@ async function exportXlsx(){
 
     // ---------- 2) รับแล้ว ----------
     const w = wb.addWorksheet("รับแล้ว", {views:[{state:"frozen",ySplit:1}]});
-    xlHeaderRow(w, ["ร้าน","รหัส","จากครัว","คนขับ","โดนัท","มันช์กิ้น","ลัง","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"],
-                   [26,8,18,16,9,11,7,9,11,8,9,9,17,10]);
+    xlHeaderRow(w, ["ร้าน","รหัส","จากครัว","คนขับ","โดนัท","มันช์กิ้น","บอมโบโลนี่","ลังส่ง","ลังกลับ","รับจริง","ที่ต้องรับ","diff","ระยะ(ม.)","ไกลเกิน","เวลารับ","จำนวนรูป"],
+                   [26,8,18,16,9,11,12,8,8,9,11,8,9,9,17,10]);
     lastData.received.forEach(r=>{
       const row=w.addRow([r.shop_name||"", r.shop_code, kitchenLabel(r), r.driver||"",
-        r.donut_recv, r.munch_recv, (r.crate_count==null?"":r.crate_count), r.total_recv, r.expected_total, r.diff,
+        r.donut_recv, r.munch_recv, r.bombo_recv||0, (r.crate_sent==null?"":r.crate_sent), (r.crate_count==null?"":r.crate_count),
+        r.total_recv, r.expected_total, r.diff,
         (r.dist_m==null?"":r.dist_m), (r.far?"ใช่":""), fmtXlsxDateTime(r.received_at), photoCount(r)]);
-      xlNum(row, [5,6,7,8,9,10,11,14]);
-      const dc=row.getCell(10); dc.font={bold:true,color:{argb:(r.diff<0?XL.red:(r.diff>0?XL.green:XL.ink))}};
-      if(r.far) row.getCell(12).font={bold:true,color:{argb:XL.red}};
+      xlNum(row, [5,6,7,8,9,10,11,12,13,16]);
+      const dc=row.getCell(12); dc.font={bold:true,color:{argb:(r.diff<0?XL.red:(r.diff>0?XL.green:XL.ink))}};
+      if(r.far) row.getCell(14).font={bold:true,color:{argb:XL.red}};
     });
-    const tr=w.addRow(["รวม","","","", t.donut_recv||0, t.munch_recv||0, t.crate_total||0, t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
-    xlNum(tr,[5,6,7,8,9,10]);
+    const tr=w.addRow(["รวม","","","", t.donut_recv||0, t.munch_recv||0, t.bombo_recv||0, t.crate_sent_total||0, t.crate_total||0,
+                       t.total_recv||0, t.expected_total||0, t.diff||0, "","","",""]);
+    xlNum(tr,[5,6,7,8,9,10,11,12]);
     xlZebra(w,2);   // zebra ก่อน แล้วค่อยทับสีแถวรวม
     tr.eachCell(c=>{ c.font=Object.assign({bold:true}, c.font||{}); c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.head2}}; c.border=xlBorder(); });
-    w.autoFilter="A1:N1";
+    w.autoFilter="A1:P1";
 
     // ---------- 3) ค้างรับ ----------
     const p = wb.addWorksheet("ค้างรับ", {views:[{state:"frozen",ySplit:1}]});
@@ -697,8 +720,9 @@ async function exportXlsx(){
     const k = wb.addWorksheet("สรุปรายการ", {views:[{state:"frozen",ySplit:1}]});
     xlHeaderRow(k, ["รายการ","รหัส","ประเภท","รับจริง (ชิ้น)"], [36,12,12,14]);
     skuRows.forEach(x=>{
-      const row=k.addRow([x.name, x.code, x.munch?"มันช์กิ้น":"โดนัท", x.qty]); xlNum(row,[4]);
-      row.getCell(3).font={color:{argb:(x.munch?"FF6B3FD1":XL.orange)},bold:true};
+      const c = CAT[x.cat] || CAT.donut;
+      const row=k.addRow([x.name, x.code, c.label, x.qty]); xlNum(row,[4]);
+      row.getCell(3).font={color:{argb:c.argb},bold:true};
     });
     let tr2=null;
     if(skuRows.length){
