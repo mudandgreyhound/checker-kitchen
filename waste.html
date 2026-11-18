@@ -216,21 +216,6 @@
       <div class="cunit">ชิ้น</div>
     </div>
 
-    <!-- ลังใส่โดนัท: ถ่ายรูปลัง (หลายรูปได้) + นับจำนวนลังที่เอากลับ -->
-    <div class="sect hidden" id="crateSect">↩️ ลังที่เอากลับ</div>
-    <button class="photo" id="btnCratePhoto">📦 ถ่ายรูปลังที่เอากลับ</button>
-    <input id="cratePhotoInput" type="file" accept="image/*" capture="environment" class="hidden">
-    <div id="crateGrid" class="photogrid"></div>
-    <div class="counter">
-      <div class="clabel" id="crateLabel">ลัง</div>
-      <div class="ctrl">
-        <button class="btn-step minus" data-k="crate" data-d="-1">−</button>
-        <div class="cval" id="crateVal">0</div>
-        <button class="btn-step" data-k="crate" data-d="1">+</button>
-      </div>
-      <div class="cunit">ลัง</div>
-    </div>
-
     <!-- ลังขนมที่ส่งให้ร้าน: ถ่ายรูป (หลายรูปได้) + นับจำนวนลังที่ส่ง — โชว์เมื่อ backend รองรับ (features.crate_sent) -->
     <div id="sentBlock" class="hidden">
       <div class="sect">🚚 ลังขนมที่ส่งให้ร้าน</div>
@@ -246,6 +231,21 @@
         </div>
         <div class="cunit">ลัง</div>
       </div>
+    </div>
+
+    <!-- ลังใส่โดนัท: ถ่ายรูปลัง (หลายรูปได้) + นับจำนวนลังที่เอากลับ -->
+    <div class="sect hidden" id="crateSect">↩️ ลังที่เอากลับ</div>
+    <button class="photo" id="btnCratePhoto">📦 ถ่ายรูปลังที่เอากลับ</button>
+    <input id="cratePhotoInput" type="file" accept="image/*" capture="environment" class="hidden">
+    <div id="crateGrid" class="photogrid"></div>
+    <div class="counter">
+      <div class="clabel" id="crateLabel">ลัง</div>
+      <div class="ctrl">
+        <button class="btn-step minus" data-k="crate" data-d="-1">−</button>
+        <div class="cval" id="crateVal">0</div>
+        <button class="btn-step" data-k="crate" data-d="1">+</button>
+      </div>
+      <div class="cunit">ลัง</div>
     </div>
 
     <button class="receive" id="btnReceive">✓ รับของ</button>
@@ -564,8 +564,8 @@ async function doReceive(){
   // เตือนรูปที่ยังไม่ได้ถ่าย (ถามครั้งเดียว)
   const missing = [];
   if (!crateOnly && !photos.donut.length) missing.push("โดนัทที่รับ");
-  if (crateOnly && vals.crate > 0 && !photos.crate.length) missing.push("ลังที่เอากลับ");
   if (sent > 0 && !photos.sent.length) missing.push("ลังขนมที่ส่ง");
+  if (crateOnly && vals.crate > 0 && !photos.crate.length) missing.push("ลังที่เอากลับ");
   if (missing.length && !confirm(`ยังไม่ได้ถ่ายรูป${missing.join(" / ")} — ยืนยันบันทึกเลยไหม?`)) return;
   $("btnReceive").disabled = true;
   try{
@@ -576,8 +576,8 @@ async function doReceive(){
       lat: gps ? gps.lat : null,
       lng: gps ? gps.lng : null,
       accuracy_m: gps ? gps.acc : null,
-      // รูปโดนัท + รูปลังกลับ + รูปลังส่ง (ปั๊ก GPS + ป้ายหมวดลงรูปแล้ว)
-      photos_b64: photos.donut.concat(photos.crate, useSent ? photos.sent : []),
+      // รูปโดนัท + รูปลังส่ง + รูปลังกลับ (ปั๊ก GPS + ป้ายหมวดลงรูปแล้ว) — เรียงตามหน้าจอ
+      photos_b64: photos.donut.concat(useSent ? photos.sent : [], photos.crate),
       donut_recv: vals.donut + (features.bombo ? 0 : vals.bombo),
       munch_recv: vals.munch,
       crate_count: vals.crate,
