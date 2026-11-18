@@ -335,7 +335,7 @@ async function api(path, opts){
   const res = await fetch(API_BASE + path, opts);
   if (res.status === 401){ doLogout(); throw new Error("หมดเวลา เข้าสู่ระบบใหม่"); }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || ("error " + res.status));
+  if (!res.ok){ const err = new Error(data.detail || ("error " + res.status)); err.status = res.status; throw err; }
   return data;
 }
 
@@ -500,7 +500,10 @@ async function openCrateOnly(code){
   try{
     const info = await api(`/api/waste-return/shop-info?shop_code=${encodeURIComponent(code)}`);
     name = info && info.shop_name ? info.shop_name : null;
-  }catch(e){ /* resolve ไม่ได้ก็เปิดด้วยรหัสเปล่า ๆ */ }
+  }catch(e){
+    if (e.status === 403){ toast(e.message, true); return; }   // ร้านนอกครัวของ user → ไม่เปิดหน้ารับ
+    /* อย่างอื่น resolve ไม่ได้ก็เปิดด้วยรหัสเปล่า ๆ */
+  }
   openReceive({ shop_code: code, shop_name: name });
 }
 
